@@ -1,1 +1,735 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cees AI Studio - Factuurgenerator</title>
+  <style>
+    :root {
+      --ink: #17201d;
+      --muted: #61706b;
+      --line: #d9e0dc;
+      --paper: #fffdf8;
+      --panel: #f4f7f3;
+      --accent: #0f6b5f;
+      --accent-2: #f0b84d;
+      --danger: #a33b31;
+      --shadow: 0 18px 45px rgba(23, 32, 29, .12);
+    }
 
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #e9eee9;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+
+    button, input, textarea, select { font: inherit; }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(330px, 430px) minmax(640px, 1fr);
+    }
+
+    .editor {
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      padding: 22px;
+      overflow: auto;
+      height: 100vh;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .brand h1 {
+      font-size: 22px;
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    .brand span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 2px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .status {
+      min-height: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      margin: -8px 0 14px;
+    }
+
+    .status.warning {
+      color: var(--danger);
+      font-weight: 750;
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      min-height: 38px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 650;
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .btn.danger {
+      color: var(--danger);
+    }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .62);
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    details[open] summary { border-bottom: 1px solid var(--line); }
+
+    summary {
+      cursor: pointer;
+      padding: 13px 14px;
+      font-weight: 800;
+      list-style-position: inside;
+    }
+
+    .section { padding: 14px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 9px 10px;
+      background: white;
+      color: var(--ink);
+    }
+
+    textarea { min-height: 82px; resize: vertical; }
+    .wide { grid-column: 1 / -1; }
+
+    .line-editor {
+      display: grid;
+      grid-template-columns: 1fr 74px 90px 76px 36px;
+      gap: 8px;
+      align-items: end;
+      margin-bottom: 9px;
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 38px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: white;
+      cursor: pointer;
+      color: var(--danger);
+      font-weight: 900;
+    }
+
+    .preview-wrap {
+      padding: 28px;
+      overflow: auto;
+      height: 100vh;
+    }
+
+    .invoice {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+      padding: 20mm;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .invoice-top {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .logo-box {
+      width: 108px;
+      height: 150px;
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+      font-weight: 900;
+      font-size: 22px;
+      overflow: hidden;
+      margin-bottom: 18px;
+      background: #eadfce;
+    }
+
+    .logo-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .invoice h2 {
+      margin: 0;
+      font-size: 38px;
+      letter-spacing: 0;
+    }
+
+    .invoice h3 {
+      margin: 0 0 7px;
+      font-size: 13px;
+      text-transform: uppercase;
+      color: var(--accent);
+      letter-spacing: .08em;
+    }
+
+    .company, .client, .meta, .notes, .payment {
+      white-space: pre-line;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .meta {
+      display: grid;
+      gap: 7px;
+      justify-content: end;
+      text-align: right;
+    }
+
+    .meta strong { color: var(--ink); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th {
+      text-align: left;
+      color: var(--accent);
+      border-bottom: 2px solid var(--accent);
+      padding: 9px 8px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    td {
+      padding: 11px 8px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    .num { text-align: right; white-space: nowrap; }
+
+    .summary-box {
+      margin-left: auto;
+      width: 270px;
+      display: grid;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .sum-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .sum-row.total {
+      margin-top: 5px;
+      border-top: 2px solid var(--accent);
+      padding-top: 10px;
+      font-size: 20px;
+      font-weight: 900;
+    }
+
+    .invoice-bottom {
+      margin-top: auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      border-top: 1px solid var(--line);
+      padding-top: 18px;
+    }
+
+    .small-help {
+      color: var(--muted);
+      font-size: 12px;
+      margin: 8px 0 0;
+    }
+
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 1fr; }
+      .editor, .preview-wrap { height: auto; }
+      .invoice { width: 100%; min-height: auto; padding: 24px; }
+      .line-editor { grid-template-columns: 1fr 1fr; }
+      .line-editor label:first-child, .line-editor .icon-btn { grid-column: 1 / -1; }
+      .invoice-top, .invoice-bottom { grid-template-columns: 1fr; }
+      .meta { justify-content: start; text-align: left; }
+    }
+
+    @media print {
+      body { background: white; }
+      .editor { display: none; }
+      .app { display: block; }
+      .preview-wrap { padding: 0; height: auto; overflow: visible; }
+      .invoice {
+        width: auto;
+        min-height: 297mm;
+        box-shadow: none;
+        margin: 0;
+      }
+      @page { size: A4; margin: 0; }
+    }
+
+    body.print-mode {
+      background: white;
+    }
+
+    body.print-mode .editor {
+      display: none;
+    }
+
+    body.print-mode .app {
+      display: block;
+    }
+
+    body.print-mode .preview-wrap {
+      padding: 0;
+      height: auto;
+      overflow: visible;
+    }
+
+    body.print-mode .invoice {
+      width: auto;
+      min-height: 297mm;
+      box-shadow: none;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside class="editor">
+      <div class="brand">
+        <div>
+          <h1>Cees AI Studio</h1>
+          <span>Factuurgenerator</span>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="printBtn" type="button">PDF maken</button>
+        <button class="btn" id="saveBtn" type="button">Bewaar</button>
+        <button class="btn danger" id="resetBtn" type="button">Leegmaken</button>
+      </div>
+      <div class="status" id="status"></div>
+
+      <details open>
+        <summary>Jouw gegevens</summary>
+        <section class="section grid">
+          <label class="wide">Logo
+            <input id="logoFile" type="file" accept="image/*">
+          </label>
+          <label class="wide">Bedrijfsgegevens
+            <textarea data-field="company">Cees AI Studio
+Eenmanszaak
+Hoofdvestiging
+Jachthoornstraat 67
+6219BN Maastricht
+Nederland
+E-mail: cees@arc-flow.nl
+KVK: 42092232
+Vestigingsnummer: 000065961978
+BTW-id: NL005494071B57
+IBAN: NL35 BUNQ 2201 1879 40</textarea>
+          </label>
+          <label class="wide">Betaaltekst
+            <textarea data-field="payment">Graag betalen binnen 14 dagen onder vermelding van het factuurnummer.</textarea>
+          </label>
+        </section>
+      </details>
+
+      <details open>
+        <summary>Factuur</summary>
+        <section class="section grid">
+          <label>Factuurnummer
+            <input data-field="invoiceNumber" value="CAS-2026-001">
+          </label>
+          <label>BTW-tarief
+            <select data-field="vatRate">
+              <option value="21">21%</option>
+              <option value="9">9%</option>
+              <option value="0">0%</option>
+            </select>
+          </label>
+          <label>Factuurdatum
+            <input data-field="invoiceDate" type="date">
+          </label>
+          <label>Vervaldatum
+            <input data-field="dueDate" type="date">
+          </label>
+          <label class="wide">Klantgegevens
+            <textarea data-field="client">Klantnaam
+Adres klant
+Postcode en plaats
+Nederland</textarea>
+          </label>
+        </section>
+      </details>
+
+      <details open>
+        <summary>Factuurregels</summary>
+        <section class="section">
+          <div id="lines"></div>
+          <button class="btn" id="addLineBtn" type="button">Regel toevoegen</button>
+          <p class="small-help">Bedragen zijn exclusief btw. Gebruik een punt of komma voor decimalen.</p>
+        </section>
+      </details>
+
+      <details>
+        <summary>Notitie</summary>
+        <section class="section">
+          <label>Extra tekst op factuur
+            <textarea data-field="notes">Dank voor de opdracht en het vertrouwen.</textarea>
+          </label>
+        </section>
+      </details>
+    </aside>
+
+    <section class="preview-wrap">
+      <article class="invoice" id="invoice">
+        <header class="invoice-top">
+          <div>
+            <div class="logo-box" id="logoPreview">CAS</div>
+            <h2>Factuur</h2>
+            <div class="company" id="companyPreview"></div>
+          </div>
+          <div class="meta">
+            <div>Factuurnummer<br><strong id="invoiceNumberPreview"></strong></div>
+            <div>Factuurdatum<br><strong id="invoiceDatePreview"></strong></div>
+            <div>Vervaldatum<br><strong id="dueDatePreview"></strong></div>
+          </div>
+        </header>
+
+        <section>
+          <h3>Factuur aan</h3>
+          <div class="client" id="clientPreview"></div>
+        </section>
+
+        <section>
+          <table>
+            <thead>
+              <tr>
+                <th>Omschrijving</th>
+                <th class="num">Aantal</th>
+                <th class="num">Tarief</th>
+                <th class="num">Bedrag</th>
+              </tr>
+            </thead>
+            <tbody id="linePreview"></tbody>
+          </table>
+        </section>
+
+        <section class="summary-box">
+          <div class="sum-row"><span>Subtotaal</span><strong id="subtotalPreview"></strong></div>
+          <div class="sum-row"><span id="vatLabelPreview">BTW</span><strong id="vatPreview"></strong></div>
+          <div class="sum-row total"><span>Totaal</span><strong id="totalPreview"></strong></div>
+        </section>
+
+        <footer class="invoice-bottom">
+          <div>
+            <h3>Betaling</h3>
+            <div class="payment" id="paymentPreview"></div>
+          </div>
+          <div>
+            <h3>Notitie</h3>
+            <div class="notes" id="notesPreview"></div>
+          </div>
+        </footer>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      company: `Cees AI Studio
+Eenmanszaak
+Hoofdvestiging
+Jachthoornstraat 67
+6219BN Maastricht
+Nederland
+E-mail: cees@arc-flow.nl
+KVK: 42092232
+Vestigingsnummer: 000065961978
+BTW-id: NL005494071B57
+IBAN: NL35 BUNQ 2201 1879 40`,
+      payment: 'Graag betalen binnen 14 dagen onder vermelding van het factuurnummer op de volledige IBAN.',
+      invoiceNumber: 'CAS-2026-001',
+      vatRate: '21',
+      invoiceDate: '',
+      dueDate: '',
+      client: `Klantnaam
+Adres klant
+Postcode en plaats
+Nederland`,
+      notes: 'Dank voor de opdracht en het vertrouwen.',
+      logo: 'assets/cees-ai-studio-logo-factuur.png',
+      lines: [
+        { description: 'AI consultancy en studio werkzaamheden - geleverd in juli 2026', quantity: 1, rate: 0 }
+      ]
+    };
+
+    const storageKey = 'cees-ai-studio-invoice-generator-pages-v1';
+    const euro = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' });
+    const dateFmt = new Intl.DateTimeFormat('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    const $ = (selector) => document.querySelector(selector);
+    const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+    function today(offsetDays = 0) {
+      const date = new Date();
+      date.setDate(date.getDate() + offsetDays);
+      return date.toISOString().slice(0, 10);
+    }
+
+    function parseMoney(value) {
+      const parsed = Number(String(value).replace(',', '.'));
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function formatDate(value) {
+      if (!value) return '';
+      const date = new Date(`${value}T12:00:00`);
+      return Number.isNaN(date.getTime()) ? value : dateFmt.format(date);
+    }
+
+    function load() {
+      if (new URLSearchParams(location.search).get('print') === '1') {
+        document.body.classList.add('print-mode');
+      }
+      const saved = localStorage.getItem(storageKey);
+      if (saved) Object.assign(state, JSON.parse(saved));
+      if (!state.invoiceDate) state.invoiceDate = today();
+      if (!state.dueDate) state.dueDate = today(14);
+      bindFields();
+      renderLinesEditor();
+      render();
+      validateRequiredBusinessDetails();
+      if (document.body.classList.contains('print-mode')) {
+        triggerPrintWhenReady();
+      }
+    }
+
+    function bindFields() {
+      $$('[data-field]').forEach((input) => {
+        input.value = state[input.dataset.field] || '';
+        input.addEventListener('input', () => {
+          state[input.dataset.field] = input.value;
+          render();
+          validateRequiredBusinessDetails();
+        });
+      });
+    }
+
+    function renderLinesEditor() {
+      const container = $('#lines');
+      container.innerHTML = '';
+      state.lines.forEach((line, index) => {
+        const row = document.createElement('div');
+        row.className = 'line-editor';
+        row.innerHTML = `
+          <label>Omschrijving<input value="${escapeHtml(line.description)}" data-line="${index}" data-prop="description"></label>
+          <label>Aantal<input value="${line.quantity}" data-line="${index}" data-prop="quantity"></label>
+          <label>Tarief<input value="${line.rate}" data-line="${index}" data-prop="rate"></label>
+          <label>BTW<input value="${state.vatRate}%" disabled></label>
+          <button class="icon-btn" type="button" title="Verwijder regel" data-remove="${index}">x</button>
+        `;
+        container.appendChild(row);
+      });
+
+      $$('[data-line]').forEach((input) => {
+        input.addEventListener('input', () => {
+          const line = state.lines[Number(input.dataset.line)];
+          line[input.dataset.prop] = input.dataset.prop === 'description' ? input.value : parseMoney(input.value);
+          render();
+        });
+      });
+
+      $$('[data-remove]').forEach((button) => {
+        button.addEventListener('click', () => {
+          state.lines.splice(Number(button.dataset.remove), 1);
+          renderLinesEditor();
+          render();
+        });
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+      }[char]));
+    }
+
+    function render() {
+      $('#companyPreview').textContent = state.company;
+      $('#paymentPreview').textContent = state.payment;
+      $('#invoiceNumberPreview').textContent = state.invoiceNumber;
+      $('#invoiceDatePreview').textContent = formatDate(state.invoiceDate);
+      $('#dueDatePreview').textContent = formatDate(state.dueDate);
+      $('#clientPreview').textContent = state.client;
+      $('#notesPreview').textContent = state.notes;
+      $('#vatLabelPreview').textContent = `BTW ${parseMoney(state.vatRate)}%`;
+
+      const tbody = $('#linePreview');
+      tbody.innerHTML = '';
+      let subtotal = 0;
+      state.lines.forEach((line) => {
+        const quantity = parseMoney(line.quantity);
+        const rate = parseMoney(line.rate);
+        const amount = quantity * rate;
+        subtotal += amount;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(line.description)}</td>
+          <td class="num">${quantity.toLocaleString('nl-NL')}</td>
+          <td class="num">${euro.format(rate)}</td>
+          <td class="num">${euro.format(amount)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      const vat = subtotal * (parseMoney(state.vatRate) / 100);
+      $('#subtotalPreview').textContent = euro.format(subtotal);
+      $('#vatPreview').textContent = euro.format(vat);
+      $('#totalPreview').textContent = euro.format(subtotal + vat);
+
+      const logoBox = $('#logoPreview');
+      if (state.logo) {
+        logoBox.innerHTML = `<img alt="Logo Cees AI Studio" src="${state.logo}">`;
+      } else {
+        logoBox.textContent = 'CAS';
+      }
+    }
+
+    function setStatus(message, type = 'info') {
+      const status = $('#status');
+      status.textContent = message;
+      status.classList.toggle('warning', type === 'warning');
+    }
+
+    function validateRequiredBusinessDetails() {
+      if (document.body.classList.contains('print-mode')) return;
+      const company = state.company || '';
+      const missing = [];
+      if (/BTW-id:\s*(NOG INVULLEN)?\s*$/m.test(company)) missing.push('jouw BTW-id');
+      if (/IBAN:\s*(NOG INVULLEN)?\s*$/m.test(company)) missing.push('jouw volledige IBAN');
+      if (missing.length) {
+        setStatus(`Nog nodig voor een complete factuur: ${missing.join(' en ')}.`, 'warning');
+      } else if ($('#status').classList.contains('warning')) {
+        setStatus('');
+      }
+    }
+
+    function makePdf() {
+      localStorage.setItem(storageKey, JSON.stringify(state));
+      const printUrl = new URL(location.href);
+      printUrl.searchParams.set('print', '1');
+      printUrl.searchParams.set('v', 'pages-v1');
+      const printWindow = window.open(printUrl.toString(), '_blank');
+      if (!printWindow) {
+        setStatus('De browser blokkeerde het PDF-venster. Sta pop-ups toe of gebruik Cmd+P.');
+        return;
+      }
+      setStatus('PDF-venster geopend. Kies daar "Bewaar als PDF".');
+    }
+
+    function triggerPrintWhenReady() {
+      const startPrint = () => window.print();
+      const logo = document.querySelector('#logoPreview img');
+      if (logo && !logo.complete) {
+        logo.addEventListener('load', startPrint, { once: true });
+        logo.addEventListener('error', startPrint, { once: true });
+      } else {
+        setTimeout(startPrint, 250);
+      }
+    }
+
+    $('#addLineBtn').addEventListener('click', () => {
+      state.lines.push({ description: 'Nieuwe dienst', quantity: 1, rate: 0 });
+      renderLinesEditor();
+      render();
+    });
+
+    $('#saveBtn').addEventListener('click', () => {
+      localStorage.setItem(storageKey, JSON.stringify(state));
+      alert('Bewaard in deze browser.');
+    });
+
+    $('#resetBtn').addEventListener('click', () => {
+      if (!confirm('Alle ingevulde gegevens leegmaken?')) return;
+      localStorage.removeItem(storageKey);
+      location.reload();
+    });
+
+    $('#printBtn').addEventListener('click', makePdf);
+
+    $('#logoFile').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.logo = reader.result;
+        render();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    load();
+  </script>
+</body>
+</html>
