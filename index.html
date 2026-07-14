@@ -6,15 +6,15 @@
   <title>Cees AI Studio - Factuurgenerator</title>
   <style>
     :root {
-      --ink: #17201d;
-      --muted: #61706b;
-      --line: #d9e0dc;
-      --paper: #fffdf8;
-      --panel: #f4f7f3;
-      --accent: #0f6b5f;
-      --accent-2: #f0b84d;
-      --danger: #a33b31;
-      --shadow: 0 18px 45px rgba(23, 32, 29, .12);
+      --ink: #1a202c;
+      --muted: #4a5568;
+      --line: #e2e8f0;
+      --paper: #ffffff;
+      --panel: #f8fafc;
+      --accent: #1136c2;
+      --accent-2: #3b82f6;
+      --danger: #e53e3e;
+      --shadow: 0 10px 25px rgba(0, 0, 0, .05);
     }
 
     * { box-sizing: border-box; }
@@ -188,118 +188,134 @@
       padding: 20mm;
       display: flex;
       flex-direction: column;
-      gap: 28px;
+      gap: 32px;
+      font-size: 13px;
     }
 
     .invoice-top {
-      display: grid;
-      grid-template-columns: 1.2fr .8fr;
-      gap: 24px;
-      align-items: start;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
     }
 
     .logo-box {
-      width: 108px;
-      height: 150px;
-      display: grid;
-      place-items: center;
+      width: 160px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
       color: var(--accent);
       font-weight: 900;
-      font-size: 22px;
+      font-size: 26px;
       overflow: hidden;
-      margin-bottom: 18px;
-      background: #eadfce;
     }
 
     .logo-box img {
       width: 100%;
       height: 100%;
       object-fit: contain;
-      display: block;
+      object-position: left;
     }
 
-    .invoice h2 {
+    .invoice-title {
       margin: 0;
-      font-size: 38px;
+      font-size: 32px;
       letter-spacing: 0;
-    }
-
-    .invoice h3 {
-      margin: 0 0 7px;
-      font-size: 13px;
-      text-transform: uppercase;
       color: var(--accent);
-      letter-spacing: .08em;
+      font-weight: 800;
     }
 
-    .company, .client, .meta, .notes, .payment {
-      white-space: pre-line;
-      color: var(--muted);
+    .invoice-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-top: -12px;
       font-size: 13px;
     }
-
-    .meta {
-      display: grid;
-      gap: 7px;
-      justify-content: end;
-      text-align: right;
+    
+    .meta-left {
+      color: var(--accent);
     }
 
-    .meta strong { color: var(--ink); }
+    .meta-right {
+      display: grid;
+      gap: 4px;
+    }
+    
+    .meta-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .company, .client, .payment, .notes {
+      white-space: pre-line;
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .client {
+      margin-top: 12px;
+    }
 
     table {
       width: 100%;
       border-collapse: collapse;
       font-size: 13px;
+      margin-top: 12px;
     }
 
     th {
       text-align: left;
       color: var(--accent);
       border-bottom: 2px solid var(--accent);
-      padding: 9px 8px;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: .06em;
+      padding: 12px 8px;
+      font-size: 13px;
+      font-weight: 700;
     }
 
     td {
-      padding: 11px 8px;
+      padding: 14px 8px;
       border-bottom: 1px solid var(--line);
       vertical-align: top;
     }
 
     .num { text-align: right; white-space: nowrap; }
+    th.num { text-align: right; }
 
     .summary-box {
       margin-left: auto;
-      width: 270px;
+      width: 250px;
       display: grid;
       gap: 8px;
-      font-size: 14px;
+      font-size: 13px;
+      margin-top: -12px;
     }
 
     .sum-row {
       display: flex;
       justify-content: space-between;
       gap: 16px;
+      padding: 4px 8px;
     }
 
     .sum-row.total {
-      margin-top: 5px;
-      border-top: 2px solid var(--accent);
-      padding-top: 10px;
-      font-size: 20px;
-      font-weight: 900;
+      border-top: 1px solid var(--accent);
+      border-bottom: 1px solid var(--accent);
+      padding-top: 12px;
+      padding-bottom: 12px;
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--accent);
     }
 
     .invoice-bottom {
       margin-top: auto;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      border-top: 1px solid var(--line);
-      padding-top: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-top: 40px;
     }
 
     .small-help {
@@ -314,8 +330,8 @@
       .invoice { width: 100%; min-height: auto; padding: 24px; }
       .line-editor { grid-template-columns: 1fr 1fr; }
       .line-editor label:first-child, .line-editor .icon-btn { grid-column: 1 / -1; }
-      .invoice-top, .invoice-bottom { grid-template-columns: 1fr; }
-      .meta { justify-content: start; text-align: left; }
+      .invoice-top { flex-direction: column; }
+      .invoice-meta-row { flex-direction: column; gap: 12px; }
     }
 
     @media print {
@@ -453,31 +469,35 @@ Nederland</textarea>
     <section class="preview-wrap">
       <article class="invoice" id="invoice">
         <header class="invoice-top">
-          <div>
-            <div class="logo-box" id="logoPreview">CAS</div>
-            <h2>Factuur</h2>
-            <div class="company" id="companyPreview"></div>
-          </div>
-          <div class="meta">
-            <div>Factuurnummer<br><strong id="invoiceNumberPreview"></strong></div>
-            <div>Factuurdatum<br><strong id="invoiceDatePreview"></strong></div>
-            <div>Vervaldatum<br><strong id="dueDatePreview"></strong></div>
-          </div>
+          <div class="logo-box" id="logoPreview">CAS</div>
+          <div class="company" id="companyPreview"></div>
         </header>
 
-        <section>
-          <h3>Factuur aan</h3>
+        <section class="invoice-client">
           <div class="client" id="clientPreview"></div>
         </section>
 
-        <section>
+        <h2 class="invoice-title">Factuur</h2>
+
+        <section class="invoice-meta-row">
+          <div class="meta-left" style="color: var(--accent);">
+            Factuurnummer: <strong id="invoiceNumberPreview" style="font-weight: 400; color: var(--accent);"></strong>
+          </div>
+          <div class="meta-right">
+            <div class="meta-line"><span>Factuurdatum:</span> <strong id="invoiceDatePreview" style="font-weight: 400;"></strong></div>
+            <div class="meta-line"><span>Vervaldatum:</span> <strong id="dueDatePreview" style="font-weight: 400;"></strong></div>
+          </div>
+        </section>
+
+        <section class="invoice-table-section">
           <table>
             <thead>
               <tr>
-                <th>Omschrijving</th>
-                <th class="num">Aantal</th>
-                <th class="num">Tarief</th>
+                <th style="width: 15%"></th>
+                <th style="width: 40%">Omschrijving</th>
                 <th class="num">Bedrag</th>
+                <th class="num">Totaal</th>
+                <th class="num">BTW</th>
               </tr>
             </thead>
             <tbody id="linePreview"></tbody>
@@ -487,18 +507,12 @@ Nederland</textarea>
         <section class="summary-box">
           <div class="sum-row"><span>Subtotaal</span><strong id="subtotalPreview"></strong></div>
           <div class="sum-row"><span id="vatLabelPreview">BTW</span><strong id="vatPreview"></strong></div>
-          <div class="sum-row total"><span>Totaal</span><strong id="totalPreview"></strong></div>
+          <div class="sum-row total"><span style="color: var(--ink);">Totaal</span><strong id="totalPreview"></strong></div>
         </section>
 
         <footer class="invoice-bottom">
-          <div>
-            <h3>Betaling</h3>
-            <div class="payment" id="paymentPreview"></div>
-          </div>
-          <div>
-            <h3>Notitie</h3>
-            <div class="notes" id="notesPreview"></div>
-          </div>
+          <div class="payment" id="paymentPreview"></div>
+          <div class="notes" id="notesPreview"></div>
         </footer>
       </article>
     </section>
@@ -638,7 +652,7 @@ Nederland`,
       $('#dueDatePreview').textContent = formatDate(state.dueDate);
       $('#clientPreview').textContent = state.client;
       $('#notesPreview').textContent = state.notes;
-      $('#vatLabelPreview').textContent = `BTW ${parseMoney(state.vatRate)}%`;
+      $('#vatLabelPreview').textContent = `${parseMoney(state.vatRate)}% BTW`;
 
       const tbody = $('#linePreview');
       tbody.innerHTML = '';
@@ -650,10 +664,11 @@ Nederland`,
         subtotal += amount;
         const tr = document.createElement('tr');
         tr.innerHTML = `
+          <td>${quantity.toLocaleString('nl-NL')}</td>
           <td style="white-space: pre-wrap;">${escapeHtml(line.description)}</td>
-          <td class="num">${quantity.toLocaleString('nl-NL')}</td>
           <td class="num">${euro.format(rate)}</td>
           <td class="num">${euro.format(amount)}</td>
+          <td class="num">${state.vatRate}%</td>
         `;
         tbody.appendChild(tr);
       });
