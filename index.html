@@ -404,7 +404,10 @@ IBAN: NL35 BUNQ 2201 1879 40</textarea>
         <summary>Factuur</summary>
         <section class="section grid">
           <label>Factuurnummer
-            <input data-field="invoiceNumber" value="CAS-2026-001">
+            <div style="display: flex; gap: 6px;">
+              <input data-field="invoiceNumber" style="flex: 1; min-width: 0;">
+              <button class="icon-btn" id="generateCodeBtn" type="button" style="color: var(--ink); font-weight: bold; font-size: 16px;" title="Nieuwe code genereren">↻</button>
+            </div>
           </label>
           <label>BTW-tarief
             <select data-field="vatRate">
@@ -502,6 +505,12 @@ Nederland</textarea>
   </main>
 
   <script>
+    function generateInvoiceCode() {
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      return pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getDate()) + pad(d.getMonth() + 1) + d.getFullYear();
+    }
+
     const state = {
       company: `Cees AI Studio
 Eenmanszaak
@@ -515,7 +524,7 @@ Vestigingsnummer: 000065961978
 BTW-id: NL005494071B57
 IBAN: NL35 BUNQ 2201 1879 40`,
       payment: 'Graag betalen binnen 14 dagen onder vermelding van het factuurnummer op de volledige IBAN.',
-      invoiceNumber: 'CAS-2026-001',
+      invoiceNumber: generateInvoiceCode(),
       vatRate: '21',
       invoiceDate: '',
       dueDate: '',
@@ -723,6 +732,12 @@ Nederland`,
     });
 
     $('#printBtn').addEventListener('click', makePdf);
+
+    $('#generateCodeBtn').addEventListener('click', () => {
+      state.invoiceNumber = generateInvoiceCode();
+      document.querySelector('[data-field="invoiceNumber"]').value = state.invoiceNumber;
+      render();
+    });
 
     $('#logoFile').addEventListener('change', (event) => {
       const file = event.target.files[0];
