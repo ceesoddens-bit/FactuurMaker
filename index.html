@@ -583,7 +583,7 @@ Nederland`,
         const row = document.createElement('div');
         row.className = 'line-editor';
         row.innerHTML = `
-          <label>Omschrijving<input value="${escapeHtml(line.description)}" data-line="${index}" data-prop="description"></label>
+          <label>Omschrijving<textarea data-line="${index}" data-prop="description" rows="2" style="resize: vertical; min-height: 42px;">${escapeHtml(line.description)}</textarea></label>
           <label>Aantal<input value="${line.quantity}" data-line="${index}" data-prop="quantity"></label>
           <label>Tarief<input value="${line.rate}" data-line="${index}" data-prop="rate"></label>
           <label>BTW<input value="${state.vatRate}%" disabled></label>
@@ -635,7 +635,7 @@ Nederland`,
         subtotal += amount;
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${escapeHtml(line.description)}</td>
+          <td style="white-space: pre-wrap;">${escapeHtml(line.description)}</td>
           <td class="num">${quantity.toLocaleString('nl-NL')}</td>
           <td class="num">${euro.format(rate)}</td>
           <td class="num">${euro.format(amount)}</td>
