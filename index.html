@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cees AI Studio - Factuurgenerator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
     :root {
       --ink: #1a202c;
@@ -395,7 +396,7 @@
       </div>
 
       <div class="actions">
-        <button class="btn primary" id="printBtn" type="button">PDF maken</button>
+        <button class="btn primary" id="printBtn" type="button">Download PDF</button>
         <button class="btn" id="saveBtn" type="button">Bewaar</button>
         <button class="btn danger" id="resetBtn" type="button">Leegmaken</button>
       </div>
@@ -719,15 +720,37 @@ BTW: NL003482523B06`,
 
     function makePdf() {
       localStorage.setItem(storageKey, JSON.stringify(state));
-      const printUrl = new URL(location.href);
-      printUrl.searchParams.set('print', '1');
-      printUrl.searchParams.set('v', 'pages-v1');
-      const printWindow = window.open(printUrl.toString(), '_blank');
-      if (!printWindow) {
-        setStatus('De browser blokkeerde het PDF-venster. Sta pop-ups toe of gebruik Cmd+P.');
-        return;
-      }
-      setStatus('PDF-venster geopend. Kies daar "Bewaar als PDF".');
+      
+      const invoiceEl = document.getElementById('invoice');
+      const opt = {
+        margin:       0,
+        filename:     `Factuur_${state.invoiceNumber || 'Concept'}.pdf`,
+        image:        { type: 'jpeg', quality: 1 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      setStatus('PDF wordt gegenereerd, een moment geduld...');
+      const btn = $('#printBtn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = 'Bezig met genereren...';
+      btn.disabled = true;
+
+      const originalShadow = invoiceEl.style.boxShadow;
+      invoiceEl.style.boxShadow = 'none';
+
+      html2pdf().set(opt).from(invoiceEl).save().then(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        invoiceEl.style.boxShadow = originalShadow;
+        setStatus('PDF is succesvol gedownload!', 'info');
+      }).catch((err) => {
+        console.error(err);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        invoiceEl.style.boxShadow = originalShadow;
+        setStatus('Fout bij het genereren van de PDF.', 'warning');
+      });
     }
 
     function triggerPrintWhenReady() {
