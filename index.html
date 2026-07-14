@@ -743,8 +743,10 @@ BTW: NL003482523B06`,
       
       // Fix voor lege 2e pagina in html2pdf
       const originalHeight = invoiceEl.style.height;
+      const originalMinHeight = invoiceEl.style.minHeight;
       const originalOverflow = invoiceEl.style.overflow;
-      invoiceEl.style.height = '296mm';
+      invoiceEl.style.height = '295mm';
+      invoiceEl.style.minHeight = '295mm';
       invoiceEl.style.overflow = 'hidden';
 
       html2pdf().set(opt).from(invoiceEl).save().then(() => {
@@ -752,6 +754,7 @@ BTW: NL003482523B06`,
         btn.disabled = false;
         invoiceEl.style.boxShadow = originalShadow;
         invoiceEl.style.height = originalHeight;
+        invoiceEl.style.minHeight = originalMinHeight;
         invoiceEl.style.overflow = originalOverflow;
         setStatus('PDF is succesvol gedownload!', 'info');
       }).catch((err) => {
@@ -760,6 +763,7 @@ BTW: NL003482523B06`,
         btn.disabled = false;
         invoiceEl.style.boxShadow = originalShadow;
         invoiceEl.style.height = originalHeight;
+        invoiceEl.style.minHeight = originalMinHeight;
         invoiceEl.style.overflow = originalOverflow;
         setStatus('Fout bij het genereren van de PDF.', 'warning');
       });
