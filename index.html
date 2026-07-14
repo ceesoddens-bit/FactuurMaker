@@ -150,10 +150,16 @@
 
     .line-editor {
       display: grid;
-      grid-template-columns: 1fr 74px 90px 76px 36px;
-      gap: 8px;
+      grid-template-columns: 1fr 1fr 1fr 36px;
+      gap: 12px 8px;
       align-items: end;
-      margin-bottom: 9px;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px dashed var(--line);
+    }
+
+    .line-editor label:first-child {
+      grid-column: 1 / -1;
     }
 
     .icon-btn {
