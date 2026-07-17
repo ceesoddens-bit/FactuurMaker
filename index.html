@@ -258,6 +258,10 @@
       line-height: 1.6;
     }
 
+    #companyPreview {
+      text-align: right;
+    }
+
     .client {
       margin-top: 12px;
     }
@@ -412,15 +416,11 @@
           </label>
           <label class="wide">Bedrijfsgegevens
             <textarea data-field="company">Cees AI Studio
-Eenmanszaak
-Hoofdvestiging
 Jachthoornstraat 67
 6219BN Maastricht
-Nederland
 E-mail: cees@arc-flow.nl
 KVK: 42092232
-Vestigingsnummer: 000065961978
-BTW-id: NL005494071B57
+BTW-nummer: NL005494071B57
 IBAN: NL96 BUNQ 2201 6029 72</textarea>
           </label>
           <label class="wide">Betaaltekst
@@ -452,10 +452,13 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
             <input data-field="dueDate" type="date">
           </label>
           <label class="wide">Klantgegevens
-            <textarea data-field="client">Klantnaam
-Adres klant
-Postcode en plaats
-Nederland</textarea>
+            <textarea data-field="client">Woonwensmakelaar
+t.a.v. Ronaldo Lemmens
+Pastoor Vonckenstraat 21
+Geleen
+
+KVK: 80707823
+BTW: NL003482523B06</textarea>
           </label>
         </section>
       </details>
@@ -532,29 +535,27 @@ Nederland</textarea>
   </main>
 
   <script>
-    function generateInvoiceCode() {
-      const d = new Date();
-      const pad = (n) => String(n).padStart(2, '0');
-      return pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getDate()) + pad(d.getMonth() + 1) + d.getFullYear();
+    function incrementInvoiceNumber(current) {
+      const num = parseInt(current, 10);
+      if (isNaN(num)) return '00001';
+      return String(num + 1).padStart(5, '0');
     }
 
     const state = {
-      company: `Eenmanszaak
-Hoofdvestiging
+      company: `Cees AI Studio
 Jachthoornstraat 67
 6219BN Maastricht
-Nederland
 E-mail: cees@arc-flow.nl
 KVK: 42092232
-Vestigingsnummer: 000065961978
-BTW-id: NL005494071B57
+BTW-nummer: NL005494071B57
 IBAN: NL96 BUNQ 2201 6029 72`,
       payment: 'Graag betalen binnen 14 dagen onder vermelding van het factuurnummer op de volledige IBAN.',
-      invoiceNumber: generateInvoiceCode(),
+      invoiceNumber: '00001',
       vatRate: '21',
       invoiceDate: '',
       dueDate: '',
       client: `Woonwensmakelaar
+t.a.v. Ronaldo Lemmens
 Pastoor Vonckenstraat 21
 Geleen
 
@@ -711,7 +712,14 @@ BTW: NL003482523B06`,
       if (document.body.classList.contains('print-mode')) return;
       const company = state.company || '';
       const missing = [];
-      if (/BTW-id:\s*(NOG INVULLEN)?\s*$/m.test(company)) missing.push('jouw BTW-id');
+      
+      const btwMatch = company.match(/BTW-nummer:\s*(NL\S*)/i);
+      if (!btwMatch || !btwMatch[1] || btwMatch[1].trim() === '' || btwMatch[1].toUpperCase() === 'NOG INVULLEN') {
+        missing.push('een BTW-nummer beginnend met NL');
+      } else if (!btwMatch[1].toUpperCase().startsWith('NL')) {
+        missing.push('een BTW-nummer dat begint met NL');
+      }
+
       if (/IBAN:\s*(NOG INVULLEN)?\s*$/m.test(company)) missing.push('jouw volledige IBAN');
       if (missing.length) {
         setStatus(`Nog nodig voor een complete factuur: ${missing.join(' en ')}.`, 'warning');
@@ -800,7 +808,7 @@ BTW: NL003482523B06`,
     $('#printBtn').addEventListener('click', makePdf);
 
     $('#generateCodeBtn').addEventListener('click', () => {
-      state.invoiceNumber = generateInvoiceCode();
+      state.invoiceNumber = incrementInvoiceNumber(state.invoiceNumber);
       document.querySelector('[data-field="invoiceNumber"]').value = state.invoiceNumber;
       render();
     });
