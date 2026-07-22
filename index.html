@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Cees AI Studio - Factuurgenerator</title>
+  <title>Cees AI Studio - Financieel Dashboard</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
     :root {
@@ -15,7 +15,10 @@
       --accent: #b8860b;
       --accent-2: #d4af37;
       --danger: #e53e3e;
+      --success: #38a169;
       --shadow: 0 10px 25px rgba(0, 0, 0, .05);
+      --tab-bg: #fff;
+      --tab-active: var(--accent);
     }
 
     * { box-sizing: border-box; }
@@ -29,10 +32,67 @@
 
     button, input, textarea, select { font: inherit; }
 
-    .app {
-      min-height: 100vh;
+    /* ── TAB NAV ── */
+    .tab-nav {
+      background: #1a202c;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 4px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 12px rgba(0,0,0,.25);
+    }
+
+    .tab-nav .brand-name {
+      color: var(--accent-2);
+      font-weight: 800;
+      font-size: 15px;
+      letter-spacing: 0.3px;
+      padding: 14px 0;
+      margin-right: 20px;
+      white-space: nowrap;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,.55);
+      padding: 16px 20px 14px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      border-bottom: 3px solid transparent;
+      transition: color .18s, border-color .18s;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .tab-btn:hover {
+      color: rgba(255,255,255,.85);
+    }
+
+    .tab-btn.active {
+      color: var(--accent-2);
+      border-bottom-color: var(--accent-2);
+    }
+
+    .tab-btn .tab-icon {
+      font-size: 16px;
+    }
+
+    /* ── PANE WRAPPERS ── */
+    .tab-pane { display: none; }
+    .tab-pane.active { display: contents; }
+
+    /* ── INVOICE TAB (existing layout) ── */
+    #pane-invoice.active {
       display: grid;
       grid-template-columns: minmax(330px, 430px) minmax(640px, 1fr);
+      min-height: calc(100vh - 51px);
     }
 
     .editor {
@@ -40,7 +100,7 @@
       border-right: 1px solid var(--line);
       padding: 22px;
       overflow: auto;
-      height: 100vh;
+      height: calc(100vh - 51px);
     }
 
     .brand {
@@ -52,7 +112,7 @@
     }
 
     .brand h1 {
-      font-size: 22px;
+      font-size: 20px;
       margin: 0;
       letter-spacing: 0;
     }
@@ -102,6 +162,12 @@
 
     .btn.danger {
       color: var(--danger);
+    }
+
+    .btn.success {
+      background: var(--success);
+      color: white;
+      border-color: var(--success);
     }
 
     details {
@@ -177,7 +243,7 @@
     .preview-wrap {
       padding: 28px;
       overflow: auto;
-      height: 100vh;
+      height: calc(100vh - 51px);
     }
 
     .invoice {
@@ -331,20 +397,395 @@
       margin: 8px 0 0;
     }
 
+    /* ── BONNETJES TAB ── */
+    #pane-bonnetjes.active {
+      display: block;
+      min-height: calc(100vh - 51px);
+      padding: 32px;
+    }
+
+    .bonnetjes-layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .bonnetjes-form-card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+      height: fit-content;
+      position: sticky;
+      top: 83px;
+    }
+
+    .bonnetjes-form-card h2 {
+      margin: 0 0 20px;
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-row {
+      margin-bottom: 14px;
+    }
+
+    .form-row label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .receipt-photo-area {
+      border: 2px dashed var(--line);
+      border-radius: 10px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .18s, background .18s;
+      background: var(--panel);
+    }
+
+    .receipt-photo-area:hover {
+      border-color: var(--accent);
+      background: #fffbf0;
+    }
+
+    .receipt-photo-area input[type="file"] {
+      display: none;
+    }
+
+    .receipt-photo-area .photo-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    .receipt-photo-area .photo-label {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .receipt-photo-area img.preview-thumb {
+      max-width: 100%;
+      max-height: 140px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+
+    .cat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .cat-btn {
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: 13px;
+      text-align: left;
+      transition: border-color .15s, background .15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cat-btn.selected {
+      border-color: var(--accent);
+      background: #fffbf0;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    /* ── BONNETJES LIST ── */
+    .bonnetjes-list-section h2 {
+      margin: 0 0 16px;
+      font-size: 17px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .bonnetjes-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-card .stat-label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .stat-card .stat-value {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .stat-card .stat-value.green { color: var(--success); }
+    .stat-card .stat-value.gold { color: var(--accent); }
+
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .filter-chip {
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 20px;
+      padding: 5px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: border-color .15s, background .15s;
+    }
+
+    .filter-chip.active {
+      background: var(--ink);
+      color: white;
+      border-color: var(--ink);
+    }
+
+    .bonnetjes-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .bonnetje-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 16px;
+      padding: 16px 20px;
+      align-items: center;
+      transition: box-shadow .18s;
+    }
+
+    .bonnetje-card:hover {
+      box-shadow: 0 8px 32px rgba(0,0,0,.1);
+    }
+
+    .bonnetje-thumb {
+      width: 56px;
+      height: 56px;
+      border-radius: 10px;
+      object-fit: cover;
+      background: var(--panel);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      flex-shrink: 0;
+    }
+
+    .bonnetje-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 10px;
+    }
+
+    .bonnetje-info {
+      min-width: 0;
+    }
+
+    .bonnetje-title {
+      font-weight: 700;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bonnetje-meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 3px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .cat-badge {
+      background: var(--panel);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .bonnetje-right {
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .bonnetje-amount {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .bonnetje-btw {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .bonnetje-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+      justify-content: flex-end;
+    }
+
+    .small-icon-btn {
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 6px;
+      padding: 3px 8px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .small-icon-btn.del {
+      color: var(--danger);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    .empty-state .empty-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    /* ── OVERZICHT TAB ── */
+    #pane-overzicht.active {
+      display: block;
+      min-height: calc(100vh - 51px);
+      padding: 32px;
+    }
+
+    .overzicht-inner {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .overzicht-inner h2 {
+      font-size: 22px;
+      font-weight: 800;
+      margin: 0 0 24px;
+    }
+
+    .overzicht-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+
+    .ov-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .ov-card-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+
+    .ov-card-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .ov-card-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .ov-table {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .ov-table h3 {
+      margin: 0;
+      padding: 20px 24px 16px;
+      font-size: 15px;
+      font-weight: 800;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .ov-table table {
+      margin: 0;
+    }
+
+    .ov-table th, .ov-table td {
+      padding: 12px 24px;
+    }
+
+    /* ── RESPONSIVE ── */
     @media (max-width: 980px) {
-      .app { grid-template-columns: 1fr; }
+      #pane-invoice.active { grid-template-columns: 1fr; }
       .editor, .preview-wrap { height: auto; }
       .invoice { width: 100%; min-height: auto; padding: 24px; }
       .line-editor { grid-template-columns: 1fr 1fr; }
       .line-editor label:first-child, .line-editor .icon-btn { grid-column: 1 / -1; }
       .invoice-top { flex-direction: column; }
       .invoice-meta-row { flex-direction: column; gap: 12px; }
+      .bonnetjes-layout { grid-template-columns: 1fr; }
+      .bonnetjes-stats, .overzicht-cards { grid-template-columns: 1fr 1fr; }
     }
 
     @media print {
       body { background: white; }
+      .tab-nav { display: none; }
       .editor { display: none; }
-      .app { display: block; }
+      #pane-invoice.active { display: block; }
       .preview-wrap { padding: 0; height: auto; overflow: visible; }
       .invoice {
         width: 100%;
@@ -365,24 +806,10 @@
       @page { size: A4; margin: 0; }
     }
 
-    body.print-mode {
-      background: white;
-    }
-
-    body.print-mode .editor {
-      display: none;
-    }
-
-    body.print-mode .app {
-      display: block;
-    }
-
-    body.print-mode .preview-wrap {
-      padding: 0;
-      height: auto;
-      overflow: visible;
-    }
-
+    body.print-mode .tab-nav { display: none; }
+    body.print-mode .editor { display: none; }
+    body.print-mode #pane-invoice { display: block; }
+    body.print-mode .preview-wrap { padding: 0; height: auto; overflow: visible; }
     body.print-mode .invoice {
       width: auto;
       min-height: 297mm;
@@ -392,12 +819,30 @@
   </style>
 </head>
 <body>
-  <main class="app">
+
+  <!-- ── TAB NAV ── -->
+  <nav class="tab-nav">
+    <div class="brand-name">Cees AI Studio</div>
+    <button class="tab-btn active" id="tab-invoice" onclick="switchTab('invoice')">
+      <span class="tab-icon">📄</span> Factuur
+    </button>
+    <button class="tab-btn" id="tab-bonnetjes" onclick="switchTab('bonnetjes')">
+      <span class="tab-icon">🧾</span> Bonnetjes
+    </button>
+    <button class="tab-btn" id="tab-overzicht" onclick="switchTab('overzicht')">
+      <span class="tab-icon">📊</span> Overzicht
+    </button>
+  </nav>
+
+  <!-- ════════════════════════════════════════
+       TAB 1 — FACTUUR
+  ════════════════════════════════════════ -->
+  <div id="pane-invoice" class="tab-pane active">
     <aside class="editor">
       <div class="brand">
         <div>
-          <h1>Cees AI Studio</h1>
-          <span>Factuurgenerator</span>
+          <h1>Factuurgenerator</h1>
+          <span>Maak &amp; download facturen</span>
         </div>
       </div>
 
@@ -532,9 +977,173 @@ BTW: NL003482523B06</textarea>
         </footer>
       </article>
     </section>
-  </main>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       TAB 2 — BONNETJES
+  ════════════════════════════════════════ -->
+  <div id="pane-bonnetjes" class="tab-pane">
+    <div class="bonnetjes-layout">
+
+      <!-- FORMULIER -->
+      <div class="bonnetjes-form-card">
+        <h2>🧾 Bonnetje toevoegen</h2>
+
+        <div class="form-row">
+          <label>Foto / scan van bonnetje
+            <div class="receipt-photo-area" id="photoArea" onclick="document.getElementById('receiptPhoto').click()">
+              <input type="file" id="receiptPhoto" accept="image/*">
+              <div id="photoPlaceholder">
+                <div class="photo-icon">📷</div>
+                <div class="photo-label">Klik om foto te uploaden</div>
+              </div>
+              <img id="photoThumb" class="preview-thumb" style="display:none" alt="Bonnetje foto">
+            </div>
+          </label>
+        </div>
+
+        <div class="form-row">
+          <label>Omschrijving
+            <input type="text" id="rOmschrijving" placeholder="bijv. Benzine tankbeurt" autocomplete="off">
+          </label>
+        </div>
+
+        <div class="form-row">
+          <label>Bedrag (incl. BTW) €
+            <input type="number" id="rBedrag" placeholder="0.00" min="0" step="0.01">
+          </label>
+        </div>
+
+        <div class="form-row">
+          <label>BTW-tarief
+            <select id="rBtw">
+              <option value="21">21%</option>
+              <option value="9">9%</option>
+              <option value="0">0% / Geen BTW</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="form-row">
+          <label>Datum
+            <input type="date" id="rDatum">
+          </label>
+        </div>
+
+        <div class="form-row">
+          <label style="margin-bottom: 8px;">Categorie</label>
+          <div class="cat-grid" id="catGrid">
+            <button class="cat-btn selected" data-cat="Kantoor">📎 Kantoor</button>
+            <button class="cat-btn" data-cat="Reizen">🚗 Reizen</button>
+            <button class="cat-btn" data-cat="Eten & Drinken">🍽️ Eten</button>
+            <button class="cat-btn" data-cat="Software">💻 Software</button>
+            <button class="cat-btn" data-cat="Hardware">🖥️ Hardware</button>
+            <button class="cat-btn" data-cat="Overig">📦 Overig</button>
+          </div>
+        </div>
+
+        <button class="btn primary" style="width:100%; margin-top: 8px;" onclick="addBonnetje()">
+          ➕ Bonnetje opslaan
+        </button>
+      </div>
+
+      <!-- LIJST -->
+      <div class="bonnetjes-list-section">
+        <div class="bonnetjes-stats">
+          <div class="stat-card">
+            <div class="stat-label">Totaal uitgaven</div>
+            <div class="stat-value gold" id="stat-total">€ 0,00</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Terug te vorderen BTW</div>
+            <div class="stat-value green" id="stat-btw">€ 0,00</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Aantal bonnetjes</div>
+            <div class="stat-value" id="stat-count">0</div>
+          </div>
+        </div>
+
+        <h2>
+          <span>Bonnetjes</span>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" onclick="exportBonnetjesCsv()" style="font-size:13px; padding: 6px 12px;">⬇️ Export CSV</button>
+          </div>
+        </h2>
+
+        <div class="filter-bar" id="filterBar">
+          <button class="filter-chip active" data-filter="Alles" onclick="setFilter('Alles', this)">Alles</button>
+          <button class="filter-chip" data-filter="Kantoor" onclick="setFilter('Kantoor', this)">📎 Kantoor</button>
+          <button class="filter-chip" data-filter="Reizen" onclick="setFilter('Reizen', this)">🚗 Reizen</button>
+          <button class="filter-chip" data-filter="Eten & Drinken" onclick="setFilter('Eten & Drinken', this)">🍽️ Eten</button>
+          <button class="filter-chip" data-filter="Software" onclick="setFilter('Software', this)">💻 Software</button>
+          <button class="filter-chip" data-filter="Hardware" onclick="setFilter('Hardware', this)">🖥️ Hardware</button>
+          <button class="filter-chip" data-filter="Overig" onclick="setFilter('Overig', this)">📦 Overig</button>
+        </div>
+
+        <div class="bonnetjes-grid" id="bonnetjesGrid">
+          <!-- filled by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       TAB 3 — OVERZICHT
+  ════════════════════════════════════════ -->
+  <div id="pane-overzicht" class="tab-pane">
+    <div class="overzicht-inner">
+      <h2>📊 Financieel Overzicht</h2>
+
+      <div class="overzicht-cards">
+        <div class="ov-card">
+          <div class="ov-card-label">Factuuromzet (excl. BTW)</div>
+          <div class="ov-card-value" id="ov-omzet">€ 0,00</div>
+          <div class="ov-card-sub" id="ov-omzet-sub">Huidig open factuur</div>
+        </div>
+        <div class="ov-card">
+          <div class="ov-card-label">Kosten bonnetjes (incl. BTW)</div>
+          <div class="ov-card-value" id="ov-kosten">€ 0,00</div>
+          <div class="ov-card-sub" id="ov-kosten-sub">0 bonnetjes</div>
+        </div>
+        <div class="ov-card">
+          <div class="ov-card-label">Terug te vorderen BTW</div>
+          <div class="ov-card-value" id="ov-btw">€ 0,00</div>
+          <div class="ov-card-sub">Op basis van bonnetjes</div>
+        </div>
+      </div>
+
+      <div class="ov-table">
+        <h3>Kosten per categorie</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Categorie</th>
+              <th class="num">Aantal</th>
+              <th class="num">Totaal incl. BTW</th>
+              <th class="num">BTW bedrag</th>
+              <th class="num">Excl. BTW</th>
+            </tr>
+          </thead>
+          <tbody id="ov-cat-table">
+            <tr><td colspan="5" style="text-align:center; color: var(--muted); padding: 24px;">Nog geen bonnetjes ingevoerd.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
   <script>
+    /* ════════════ TABS ════════════ */
+    function switchTab(name) {
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('pane-' + name).classList.add('active');
+      document.getElementById('tab-' + name).classList.add('active');
+      if (name === 'overzicht') renderOverzicht();
+    }
+
+    /* ════════════ INVOICE (unchanged logic) ════════════ */
     function incrementInvoiceNumber(current) {
       const num = parseInt(current, 10);
       if (isNaN(num)) return '00001';
@@ -542,25 +1151,13 @@ BTW: NL003482523B06</textarea>
     }
 
     const state = {
-      company: `Cees AI Studio
-Jachthoornstraat 67
-6219BN Maastricht
-E-mail: cees@arc-flow.nl
-KVK: 42092232
-BTW-nummer: NL005494071B57
-IBAN: NL96 BUNQ 2201 6029 72`,
+      company: `Cees AI Studio\nJachthoornstraat 67\n6219BN Maastricht\nE-mail: cees@arc-flow.nl\nKVK: 42092232\nBTW-nummer: NL005494071B57\nIBAN: NL96 BUNQ 2201 6029 72`,
       payment: 'Graag betalen binnen 14 dagen onder vermelding van het factuurnummer op de volledige IBAN.',
       invoiceNumber: '00001',
       vatRate: '21',
       invoiceDate: '',
       dueDate: '',
-      client: `Woonwensmakelaar
-t.a.v. Ronaldo Lemmens
-Pastoor Vonckenstraat 21
-6161 GE Geleen
-
-KVK: 80707823
-BTW: NL003482523B06`,
+      client: `Woonwensmakelaar\nt.a.v. Ronaldo Lemmens\nPastoor Vonckenstraat 21\n6161 GE Geleen\n\nKVK: 80707823\nBTW: NL003482523B06`,
       notes: 'Dank voor de opdracht en het vertrouwen.',
       logo: 'Logo_CeesAIStudio_003.png',
       lines: [
@@ -749,7 +1346,6 @@ BTW: NL003482523B06`,
       const originalShadow = invoiceEl.style.boxShadow;
       invoiceEl.style.boxShadow = 'none';
       
-      // Fix voor lege 2e pagina in html2pdf
       const originalHeight = invoiceEl.style.height;
       const originalMinHeight = invoiceEl.style.minHeight;
       const originalOverflow = invoiceEl.style.overflow;
@@ -824,7 +1420,216 @@ BTW: NL003482523B06`,
       reader.readAsDataURL(file);
     });
 
+    /* ════════════ BONNETJES ════════════ */
+    const bonnetjesKey = 'cees-ai-studio-bonnetjes-v1';
+    let bonnetjes = JSON.parse(localStorage.getItem(bonnetjesKey) || '[]');
+    let activeFilter = 'Alles';
+    let selectedCat = 'Kantoor';
+    let receiptPhotoData = null;
+
+    // Datum standaard vandaag
+    document.getElementById('rDatum').value = today();
+
+    // Categorie knoppen
+    document.getElementById('catGrid').addEventListener('click', (e) => {
+      const btn = e.target.closest('.cat-btn');
+      if (!btn) return;
+      document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedCat = btn.dataset.cat;
+    });
+
+    // Foto upload
+    document.getElementById('receiptPhoto').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        receiptPhotoData = reader.result;
+        const thumb = document.getElementById('photoThumb');
+        thumb.src = receiptPhotoData;
+        thumb.style.display = 'block';
+        document.getElementById('photoPlaceholder').style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function addBonnetje() {
+      const omschrijving = document.getElementById('rOmschrijving').value.trim();
+      const bedrag = parseFloat(document.getElementById('rBedrag').value);
+      const btw = parseInt(document.getElementById('rBtw').value);
+      const datum = document.getElementById('rDatum').value;
+
+      if (!omschrijving) { alert('Vul een omschrijving in.'); return; }
+      if (isNaN(bedrag) || bedrag <= 0) { alert('Vul een geldig bedrag in.'); return; }
+      if (!datum) { alert('Vul een datum in.'); return; }
+
+      const btwBedrag = bedrag / (1 + btw / 100) * (btw / 100);
+
+      const bonnetje = {
+        id: Date.now(),
+        omschrijving,
+        bedrag,
+        btw,
+        btwBedrag,
+        datum,
+        categorie: selectedCat,
+        foto: receiptPhotoData
+      };
+
+      bonnetjes.unshift(bonnetje);
+      saveBonnetjes();
+      renderBonnetjes();
+
+      // Reset formulier
+      document.getElementById('rOmschrijving').value = '';
+      document.getElementById('rBedrag').value = '';
+      document.getElementById('rDatum').value = today();
+      receiptPhotoData = null;
+      document.getElementById('photoThumb').style.display = 'none';
+      document.getElementById('photoPlaceholder').style.display = 'block';
+      document.getElementById('receiptPhoto').value = '';
+    }
+
+    function saveBonnetjes() {
+      // Sla zonder foto's op als localStorage vol raakt
+      try {
+        localStorage.setItem(bonnetjesKey, JSON.stringify(bonnetjes));
+      } catch(e) {
+        const slim = bonnetjes.map(b => ({...b, foto: null}));
+        localStorage.setItem(bonnetjesKey, JSON.stringify(slim));
+      }
+    }
+
+    function deleteBonnetje(id) {
+      if (!confirm('Bonnetje verwijderen?')) return;
+      bonnetjes = bonnetjes.filter(b => b.id !== id);
+      saveBonnetjes();
+      renderBonnetjes();
+    }
+
+    function setFilter(filter, btn) {
+      activeFilter = filter;
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      renderBonnetjes();
+    }
+
+    function renderBonnetjes() {
+      const filtered = activeFilter === 'Alles' ? bonnetjes : bonnetjes.filter(b => b.categorie === activeFilter);
+      const grid = document.getElementById('bonnetjesGrid');
+
+      // Stats (always all)
+      const totalAll = bonnetjes.reduce((s, b) => s + b.bedrag, 0);
+      const totalBtw = bonnetjes.reduce((s, b) => s + b.btwBedrag, 0);
+      document.getElementById('stat-total').textContent = euro.format(totalAll);
+      document.getElementById('stat-btw').textContent = euro.format(totalBtw);
+      document.getElementById('stat-count').textContent = bonnetjes.length;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🧾</div><div>Nog geen bonnetjes${activeFilter !== 'Alles' ? ' in deze categorie' : ''}.<br>Voeg je eerste bonnetje toe!</div></div>`;
+        return;
+      }
+
+      const catIcons = { 'Kantoor': '📎', 'Reizen': '🚗', 'Eten & Drinken': '🍽️', 'Software': '💻', 'Hardware': '🖥️', 'Overig': '📦' };
+
+      grid.innerHTML = filtered.map(b => `
+        <div class="bonnetje-card" id="bon-${b.id}">
+          <div class="bonnetje-thumb">
+            ${b.foto ? `<img src="${b.foto}" alt="Bonnetje">` : `<span>${catIcons[b.categorie] || '📦'}</span>`}
+          </div>
+          <div class="bonnetje-info">
+            <div class="bonnetje-title">${escapeHtml(b.omschrijving)}</div>
+            <div class="bonnetje-meta">
+              <span>${formatDate(b.datum)}</span>
+              <span class="cat-badge">${catIcons[b.categorie] || ''} ${b.categorie}</span>
+              <span>BTW: ${b.btw}%</span>
+            </div>
+          </div>
+          <div class="bonnetje-right">
+            <div class="bonnetje-amount">${euro.format(b.bedrag)}</div>
+            <div class="bonnetje-btw">BTW: ${euro.format(b.btwBedrag)}</div>
+            <div class="bonnetje-actions">
+              <button class="small-icon-btn del" onclick="deleteBonnetje(${b.id})">🗑️ Verwijder</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function exportBonnetjesCsv() {
+      if (bonnetjes.length === 0) { alert('Geen bonnetjes om te exporteren.'); return; }
+      const rows = [
+        ['Datum', 'Omschrijving', 'Categorie', 'Bedrag incl. BTW', 'BTW%', 'BTW bedrag', 'Excl. BTW'],
+        ...bonnetjes.map(b => [
+          b.datum,
+          b.omschrijving,
+          b.categorie,
+          b.bedrag.toFixed(2).replace('.', ','),
+          b.btw + '%',
+          b.btwBedrag.toFixed(2).replace('.', ','),
+          (b.bedrag - b.btwBedrag).toFixed(2).replace('.', ',')
+        ])
+      ];
+      const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bonnetjes_${today()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    /* ════════════ OVERZICHT ════════════ */
+    function renderOverzicht() {
+      // Factuuromzet van open factuur
+      let subtotal = 0;
+      state.lines.forEach(line => {
+        subtotal += parseMoney(line.quantity) * parseMoney(line.rate);
+      });
+      document.getElementById('ov-omzet').textContent = euro.format(subtotal);
+      document.getElementById('ov-omzet-sub').textContent = `Factuur ${state.invoiceNumber} — ${state.client.split('\n')[0]}`;
+
+      // Bonnetjes kosten
+      const totalKosten = bonnetjes.reduce((s, b) => s + b.bedrag, 0);
+      const totalBtw = bonnetjes.reduce((s, b) => s + b.btwBedrag, 0);
+      document.getElementById('ov-kosten').textContent = euro.format(totalKosten);
+      document.getElementById('ov-kosten-sub').textContent = `${bonnetjes.length} bonnetje${bonnetjes.length !== 1 ? 's' : ''}`;
+      document.getElementById('ov-btw').textContent = euro.format(totalBtw);
+
+      // Per categorie
+      const cats = {};
+      bonnetjes.forEach(b => {
+        if (!cats[b.categorie]) cats[b.categorie] = { count: 0, total: 0, btw: 0 };
+        cats[b.categorie].count++;
+        cats[b.categorie].total += b.bedrag;
+        cats[b.categorie].btw += b.btwBedrag;
+      });
+
+      const tbody = document.getElementById('ov-cat-table');
+      const entries = Object.entries(cats);
+      if (entries.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--muted); padding: 24px;">Nog geen bonnetjes ingevoerd.</td></tr>';
+        return;
+      }
+
+      const catIcons = { 'Kantoor': '📎', 'Reizen': '🚗', 'Eten & Drinken': '🍽️', 'Software': '💻', 'Hardware': '🖥️', 'Overig': '📦' };
+
+      tbody.innerHTML = entries.sort((a, b) => b[1].total - a[1].total).map(([cat, data]) => `
+        <tr>
+          <td>${catIcons[cat] || '📦'} ${cat}</td>
+          <td class="num">${data.count}</td>
+          <td class="num">${euro.format(data.total)}</td>
+          <td class="num">${euro.format(data.btw)}</td>
+          <td class="num">${euro.format(data.total - data.btw)}</td>
+        </tr>
+      `).join('');
+    }
+
+    /* ════════════ INIT ════════════ */
     load();
+    renderBonnetjes();
   </script>
 </body>
 </html>
