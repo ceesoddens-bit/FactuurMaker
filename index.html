@@ -98,15 +98,19 @@
     #pane-offerte.active {
       display: grid;
       grid-template-columns: minmax(330px, 430px) minmax(640px, 1fr);
-      min-height: calc(100vh - 51px);
+      height: calc(100vh - 51px);
+      max-height: calc(100vh - 51px);
+      overflow: hidden;
     }
 
     .editor {
       background: var(--panel);
       border-right: 1px solid var(--line);
       padding: 22px;
-      overflow: auto;
-      height: calc(100vh - 51px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      height: 100%;
+      -webkit-overflow-scrolling: touch;
     }
 
     .brand {
@@ -248,8 +252,10 @@
 
     .preview-wrap {
       padding: 28px;
-      overflow: auto;
-      height: calc(100vh - 51px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      height: 100%;
+      -webkit-overflow-scrolling: touch;
     }
 
     .invoice {
