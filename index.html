@@ -88,8 +88,9 @@
     .tab-pane { display: none; }
     .tab-pane.active { display: contents; }
 
-    /* ── INVOICE TAB (existing layout) ── */
-    #pane-invoice.active {
+    /* ── INVOICE & OFFERTE TAB ── */
+    #pane-invoice.active,
+    #pane-offerte.active {
       display: grid;
       grid-template-columns: minmax(330px, 430px) minmax(640px, 1fr);
       min-height: calc(100vh - 51px);
@@ -770,7 +771,7 @@
 
     /* ── RESPONSIVE ── */
     @media (max-width: 980px) {
-      #pane-invoice.active { grid-template-columns: 1fr; }
+      #pane-invoice.active, #pane-offerte.active { grid-template-columns: 1fr; }
       .editor, .preview-wrap { height: auto; }
       .invoice { width: 100%; min-height: auto; padding: 24px; }
       .line-editor { grid-template-columns: 1fr 1fr; }
@@ -785,7 +786,7 @@
       body { background: white; }
       .tab-nav { display: none; }
       .editor { display: none; }
-      #pane-invoice.active { display: block; }
+      #pane-invoice.active, #pane-offerte.active { display: block; }
       .preview-wrap { padding: 0; height: auto; overflow: visible; }
       .invoice {
         width: 100%;
@@ -808,7 +809,8 @@
 
     body.print-mode .tab-nav { display: none; }
     body.print-mode .editor { display: none; }
-    body.print-mode #pane-invoice { display: block; }
+    body.print-mode #pane-invoice,
+    body.print-mode #pane-offerte { display: block; }
     body.print-mode .preview-wrap { padding: 0; height: auto; overflow: visible; }
     body.print-mode .invoice {
       width: auto;
@@ -825,6 +827,9 @@
     <div class="brand-name">Cees AI Studio</div>
     <button class="tab-btn active" id="tab-invoice" onclick="switchTab('invoice')">
       <span class="tab-icon">📄</span> Factuur
+    </button>
+    <button class="tab-btn" id="tab-offerte" onclick="switchTab('offerte')">
+      <span class="tab-icon">📋</span> Offerte
     </button>
     <button class="tab-btn" id="tab-bonnetjes" onclick="switchTab('bonnetjes')">
       <span class="tab-icon">🧾</span> Bonnetjes
@@ -869,7 +874,7 @@ BTW-nummer: NL005494071B57
 IBAN: NL96 BUNQ 2201 6029 72</textarea>
           </label>
           <label class="wide">Betaaltekst
-            <textarea data-field="payment">Graag betalen binnen 14 dagen onder vermelding van het factuurnummer.</textarea>
+            <textarea data-field="payment">Graag betalen binnen 14 dagen onder vermelding van het factuurnummer. Bij betaling van deze factuur gaat u akkoord met de algemene voorwaarden.</textarea>
           </label>
         </section>
       </details>
@@ -974,6 +979,152 @@ BTW: NL003482523B06</textarea>
         <footer class="invoice-bottom">
           <div class="payment" id="paymentPreview"></div>
           <div class="notes" id="notesPreview"></div>
+        </footer>
+      </article>
+    </section>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       TAB 2 — OFFERTE
+  ════════════════════════════════════════ -->
+  <div id="pane-offerte" class="tab-pane">
+    <aside class="editor">
+      <div class="brand">
+        <div>
+          <h1>Offertegenerator</h1>
+          <span>Maak &amp; download offertes</span>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="offertePrintBtn" type="button">Download PDF</button>
+        <button class="btn success" id="offerteConvertToInvoiceBtn" type="button" title="Kopieer gegevens direct naar factuur">➡️ Zet om naar factuur</button>
+        <button class="btn" id="offerteSaveBtn" type="button">Bewaar</button>
+        <button class="btn danger" id="offerteResetBtn" type="button">Leegmaken</button>
+      </div>
+      <div class="status" id="offerteStatus"></div>
+
+      <details open>
+        <summary>Jouw gegevens</summary>
+        <section class="section grid">
+          <label class="wide">Logo
+            <input id="offerteLogoFile" type="file" accept="image/*">
+          </label>
+          <label class="wide">Bedrijfsgegevens
+            <textarea data-offerte-field="company">Cees AI Studio
+Jachthoornstraat 67
+6219BN Maastricht
+E-mail: cees@arc-flow.nl
+KVK: 42092232
+BTW-nummer: NL005494071B57
+IBAN: NL96 BUNQ 2201 6029 72</textarea>
+          </label>
+          <label class="wide">Akkoord &amp; Voorwaarden tekst
+            <textarea data-offerte-field="terms">Bij akkoord op deze offerte verzoeken wij u deze per e-mail te bevestigen of ondertekend te retourneren. Op al onze diensten zijn onze algemene voorwaarden van toepassing.</textarea>
+          </label>
+        </section>
+      </details>
+
+      <details open>
+        <summary>Offerte</summary>
+        <section class="section grid">
+          <label>Offertenummer
+            <div style="display: flex; gap: 6px;">
+              <input data-offerte-field="offerteNumber" style="flex: 1; min-width: 0;">
+              <button class="icon-btn" id="offerteGenerateCodeBtn" type="button" style="color: var(--ink); font-weight: bold; font-size: 16px;" title="Nieuwe code genereren">↻</button>
+            </div>
+          </label>
+          <label>BTW-tarief
+            <select data-offerte-field="vatRate">
+              <option value="21">21%</option>
+              <option value="9">9%</option>
+              <option value="0">0%</option>
+            </select>
+          </label>
+          <label>Offertedatum
+            <input data-offerte-field="offerteDate" type="date">
+          </label>
+          <label>Geldig tot
+            <input data-offerte-field="validUntilDate" type="date">
+          </label>
+          <label class="wide">Klantgegevens
+            <textarea data-offerte-field="client">Woonwensmakelaar
+t.a.v. Ronaldo Lemmens
+Pastoor Vonckenstraat 21
+6161 GE Geleen
+
+KVK: 80707823
+BTW: NL003482523B06</textarea>
+          </label>
+        </section>
+      </details>
+
+      <details open>
+        <summary>Offerteregels</summary>
+        <section class="section">
+          <div id="offerteLines"></div>
+          <button class="btn" id="offerteAddLineBtn" type="button">Regel toevoegen</button>
+          <p class="small-help">Bedragen zijn exclusief btw. Gebruik een punt of komma voor decimalen.</p>
+        </section>
+      </details>
+
+      <details>
+        <summary>Notitie</summary>
+        <section class="section">
+          <label>Extra tekst op offerte
+            <textarea data-offerte-field="notes">Wij kijken uit naar een prettige samenwerking.</textarea>
+          </label>
+        </section>
+      </details>
+    </aside>
+
+    <section class="preview-wrap">
+      <article class="invoice" id="offerteDoc">
+        <header class="invoice-top">
+          <div class="logo-box" id="offerteLogoPreview">CAS</div>
+          <div class="company" id="offerteCompanyPreview"></div>
+        </header>
+
+        <section class="invoice-client">
+          <div class="client" id="offerteClientPreview"></div>
+        </section>
+
+        <h2 class="invoice-title">Offerte</h2>
+
+        <section class="invoice-meta-row">
+          <div class="meta-left" style="color: var(--accent);">
+            Offertenummer: <strong id="offerteNumberPreview" style="font-weight: 400; color: var(--accent);"></strong>
+          </div>
+          <div class="meta-right">
+            <div class="meta-line"><span>Offertedatum:</span> <strong id="offerteDatePreview" style="font-weight: 400;"></strong></div>
+            <div class="meta-line"><span>Geldig tot:</span> <strong id="offerteValidUntilPreview" style="font-weight: 400;"></strong></div>
+          </div>
+        </section>
+
+        <section class="invoice-table-section">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 15%"></th>
+                <th style="width: 40%">Omschrijving</th>
+                <th class="num">Bedrag</th>
+                <th class="num">Totaal</th>
+                <th class="num">BTW</th>
+              </tr>
+            </thead>
+            <tbody id="offerteLinePreview"></tbody>
+          </table>
+        </section>
+
+        <section class="summary-box">
+          <div class="sum-row"><span>Subtotaal</span><strong id="offerteSubtotalPreview"></strong></div>
+          <div class="sum-row"><span id="offerteVatLabelPreview">BTW</span><strong id="offerteVatPreview"></strong></div>
+          <div class="sum-row total"><span style="color: var(--ink);">Totaal</span><strong id="offerteTotalPreview"></strong></div>
+        </section>
+
+        <footer class="invoice-bottom">
+          <div class="payment" id="offerteTermsPreview"></div>
+          <div class="notes" id="offerteNotesPreview"></div>
         </footer>
       </article>
     </section>
@@ -1152,7 +1303,7 @@ BTW: NL003482523B06</textarea>
 
     const state = {
       company: `Cees AI Studio\nJachthoornstraat 67\n6219BN Maastricht\nE-mail: cees@arc-flow.nl\nKVK: 42092232\nBTW-nummer: NL005494071B57\nIBAN: NL96 BUNQ 2201 6029 72`,
-      payment: 'Graag betalen binnen 14 dagen onder vermelding van het factuurnummer op de volledige IBAN.',
+      payment: 'Graag betalen binnen 14 dagen onder vermelding van het factuurnummer. Bij betaling van deze factuur gaat u akkoord met de algemene voorwaarden.',
       invoiceNumber: '00002',
       vatRate: '21',
       invoiceDate: '',
@@ -1201,6 +1352,7 @@ BTW: NL003482523B06</textarea>
       renderLinesEditor();
       render();
       validateRequiredBusinessDetails();
+      loadOfferte();
       if (document.body.classList.contains('print-mode')) {
         triggerPrintWhenReady();
       }
@@ -1415,6 +1567,232 @@ BTW: NL003482523B06</textarea>
       reader.onload = () => {
         state.logo = reader.result;
         render();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    /* ════════════ OFFERTE ════════════ */
+    const offerteState = {
+      company: `Cees AI Studio\nJachthoornstraat 67\n6219BN Maastricht\nE-mail: cees@arc-flow.nl\nKVK: 42092232\nBTW-nummer: NL005494071B57\nIBAN: NL96 BUNQ 2201 6029 72`,
+      terms: 'Bij akkoord op deze offerte verzoeken wij u deze per e-mail te bevestigen of ondertekend te retourneren. Op al onze diensten zijn onze algemene voorwaarden van toepassing.',
+      offerteNumber: 'OFF-00001',
+      vatRate: '21',
+      offerteDate: '',
+      validUntilDate: '',
+      client: `Woonwensmakelaar\nt.a.v. Ronaldo Lemmens\nPastoor Vonckenstraat 21\n6161 GE Geleen\n\nKVK: 80707823\nBTW: NL003482523B06`,
+      notes: 'Wij kijken uit naar een prettige samenwerking.',
+      logo: 'Logo_CeesAIStudio_003.png',
+      lines: [
+        { description: 'Advies & Ontwikkeling AI Solution', quantity: 1, rate: 495.87 }
+      ]
+    };
+    const offerteStorageKey = 'cees-ai-studio-offerte-v1';
+
+    function loadOfferte() {
+      const saved = localStorage.getItem(offerteStorageKey);
+      if (saved) Object.assign(offerteState, JSON.parse(saved));
+      if (!offerteState.offerteDate) offerteState.offerteDate = today();
+      if (!offerteState.validUntilDate) offerteState.validUntilDate = today(30);
+      bindOfferteFields();
+      renderOfferteLinesEditor();
+      renderOfferte();
+    }
+
+    function bindOfferteFields() {
+      $$('[data-offerte-field]').forEach((input) => {
+        input.value = offerteState[input.dataset.offerteField] || '';
+        input.addEventListener('input', () => {
+          offerteState[input.dataset.offerteField] = input.value;
+          renderOfferte();
+        });
+      });
+    }
+
+    function renderOfferteLinesEditor() {
+      const container = $('#offerteLines');
+      if (!container) return;
+      container.innerHTML = '';
+      offerteState.lines.forEach((line, index) => {
+        const row = document.createElement('div');
+        row.className = 'line-editor';
+        row.innerHTML = `
+          <label>Omschrijving<textarea data-offerte-line="${index}" data-prop="description" rows="2" style="resize: vertical; min-height: 42px;">${escapeHtml(line.description)}</textarea></label>
+          <label>Aantal<input value="${line.quantity}" data-offerte-line="${index}" data-prop="quantity"></label>
+          <label>Tarief<input value="${line.rate}" data-offerte-line="${index}" data-prop="rate"></label>
+          <label>BTW<input value="${offerteState.vatRate}%" disabled></label>
+          <button class="icon-btn" type="button" title="Verwijder regel" data-offerte-remove="${index}">x</button>
+        `;
+        container.appendChild(row);
+      });
+
+      $$('[data-offerte-line]').forEach((input) => {
+        input.addEventListener('input', () => {
+          const line = offerteState.lines[Number(input.dataset.offerteLine)];
+          line[input.dataset.prop] = input.dataset.prop === 'description' ? input.value : parseMoney(input.value);
+          renderOfferte();
+        });
+      });
+
+      $$('[data-offerte-remove]').forEach((button) => {
+        button.addEventListener('click', () => {
+          offerteState.lines.splice(Number(button.dataset.offerteRemove), 1);
+          renderOfferteLinesEditor();
+          renderOfferte();
+        });
+      });
+    }
+
+    function renderOfferte() {
+      if (!$('#offerteCompanyPreview')) return;
+      $('#offerteCompanyPreview').textContent = offerteState.company;
+      $('#offerteTermsPreview').textContent = offerteState.terms;
+      $('#offerteNumberPreview').textContent = offerteState.offerteNumber;
+      $('#offerteDatePreview').textContent = formatDate(offerteState.offerteDate);
+      $('#offerteValidUntilPreview').textContent = formatDate(offerteState.validUntilDate);
+      $('#offerteClientPreview').textContent = offerteState.client;
+      $('#offerteNotesPreview').textContent = offerteState.notes;
+      $('#offerteVatLabelPreview').textContent = `${parseMoney(offerteState.vatRate)}% BTW`;
+
+      const tbody = $('#offerteLinePreview');
+      tbody.innerHTML = '';
+      let subtotal = 0;
+      offerteState.lines.forEach((line) => {
+        const quantity = parseMoney(line.quantity);
+        const rate = parseMoney(line.rate);
+        const amount = quantity * rate;
+        subtotal += amount;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${quantity.toLocaleString('nl-NL')}</td>
+          <td style="white-space: pre-wrap;">${escapeHtml(line.description)}</td>
+          <td class="num">${euro.format(rate)}</td>
+          <td class="num">${euro.format(amount)}</td>
+          <td class="num">${offerteState.vatRate}%</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      const vat = subtotal * (parseMoney(offerteState.vatRate) / 100);
+      $('#offerteSubtotalPreview').textContent = euro.format(subtotal);
+      $('#offerteVatPreview').textContent = euro.format(vat);
+      $('#offerteTotalPreview').textContent = euro.format(subtotal + vat);
+
+      const logoBox = $('#offerteLogoPreview');
+      if (offerteState.logo) {
+        logoBox.innerHTML = `<img alt="Logo Cees AI Studio" src="${offerteState.logo}">`;
+      } else {
+        logoBox.textContent = 'CAS';
+      }
+    }
+
+    function setOfferteStatus(message, type = 'info') {
+      const status = $('#offerteStatus');
+      if (!status) return;
+      status.textContent = message;
+      status.classList.toggle('warning', type === 'warning');
+    }
+
+    function makeOffertePdf() {
+      localStorage.setItem(offerteStorageKey, JSON.stringify(offerteState));
+      
+      const docEl = document.getElementById('offerteDoc');
+      const opt = {
+        margin:       0,
+        filename:     `Offerte_${offerteState.offerteNumber || 'Concept'}.pdf`,
+        image:        { type: 'jpeg', quality: 1 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      setOfferteStatus('PDF wordt gegenereerd, een moment geduld...');
+      const btn = $('#offertePrintBtn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = 'Bezig met genereren...';
+      btn.disabled = true;
+
+      const originalShadow = docEl.style.boxShadow;
+      docEl.style.boxShadow = 'none';
+      
+      const originalHeight = docEl.style.height;
+      const originalMinHeight = docEl.style.minHeight;
+      const originalOverflow = docEl.style.overflow;
+      docEl.style.height = '295mm';
+      docEl.style.minHeight = '295mm';
+      docEl.style.overflow = 'hidden';
+
+      html2pdf().set(opt).from(docEl).save().then(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        docEl.style.boxShadow = originalShadow;
+        docEl.style.height = originalHeight;
+        docEl.style.minHeight = originalMinHeight;
+        docEl.style.overflow = originalOverflow;
+        setOfferteStatus('PDF is succesvol gedownload!', 'info');
+      }).catch((err) => {
+        console.error(err);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        docEl.style.boxShadow = originalShadow;
+        docEl.style.height = originalHeight;
+        docEl.style.minHeight = originalMinHeight;
+        docEl.style.overflow = originalOverflow;
+        setOfferteStatus('Fout bij het genereren van de PDF.', 'warning');
+      });
+    }
+
+    function convertOfferteToInvoice() {
+      state.client = offerteState.client;
+      state.company = offerteState.company;
+      state.vatRate = offerteState.vatRate;
+      if (offerteState.logo) state.logo = offerteState.logo;
+      state.lines = JSON.parse(JSON.stringify(offerteState.lines));
+      state.notes = `Omgezet van offerte ${offerteState.offerteNumber}. ${offerteState.notes || ''}`.trim();
+      
+      $$('[data-field]').forEach((input) => {
+        input.value = state[input.dataset.field] || '';
+      });
+      renderLinesEditor();
+      render();
+      localStorage.setItem(storageKey, JSON.stringify(state));
+      switchTab('invoice');
+      setStatus(`Gegevens van offerte ${offerteState.offerteNumber} overgenomen in de factuur!`, 'info');
+    }
+
+    $('#offerteAddLineBtn').addEventListener('click', () => {
+      offerteState.lines.push({ description: 'Nieuwe dienst', quantity: 1, rate: 0 });
+      renderOfferteLinesEditor();
+      renderOfferte();
+    });
+
+    $('#offerteSaveBtn').addEventListener('click', () => {
+      localStorage.setItem(offerteStorageKey, JSON.stringify(offerteState));
+      alert('Offerte bewaard in deze browser.');
+    });
+
+    $('#offerteResetBtn').addEventListener('click', () => {
+      if (!confirm('Alle ingevulde gegevens op de offerte leegmaken?')) return;
+      localStorage.removeItem(offerteStorageKey);
+      location.reload();
+    });
+
+    $('#offertePrintBtn').addEventListener('click', makeOffertePdf);
+    $('#offerteConvertToInvoiceBtn').addEventListener('click', convertOfferteToInvoice);
+
+    $('#offerteGenerateCodeBtn').addEventListener('click', () => {
+      const num = parseInt(offerteState.offerteNumber.replace(/\D/g, ''), 10);
+      const nextNum = isNaN(num) ? 1 : num + 1;
+      offerteState.offerteNumber = 'OFF-' + String(nextNum).padStart(5, '0');
+      document.querySelector('[data-offerte-field="offerteNumber"]').value = offerteState.offerteNumber;
+      renderOfferte();
+    });
+
+    $('#offerteLogoFile').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        offerteState.logo = reader.result;
+        renderOfferte();
       };
       reader.readAsDataURL(file);
     });
