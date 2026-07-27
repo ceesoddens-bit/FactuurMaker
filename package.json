@@ -1,0 +1,23 @@
+{
+  "name": "factuur-maker",
+  "version": "1.0.0",
+  "description": "Cees AI Studio - Factuur, Offerte & Bonnetjes Desktop App voor macOS",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "xattr -cr node_modules/electron 2>/dev/null || true",
+    "build:mac": "electron-builder --mac"
+  },
+  "keywords": [
+    "factuur",
+    "offerte",
+    "bonnetjes",
+    "macOS",
+    "desktop"
+  ],
+  "author": "Cees AI Studio",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^31.7.7"
+  }
+}

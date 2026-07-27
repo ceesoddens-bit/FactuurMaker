@@ -37,12 +37,17 @@
       background: #1a202c;
       display: flex;
       align-items: center;
-      padding: 0 24px;
+      padding: 0 24px 0 78px; /* Ruimte voor macOS verkeerslichtknoppen */
       gap: 4px;
       position: sticky;
       top: 0;
       z-index: 100;
       box-shadow: 0 2px 12px rgba(0,0,0,.25);
+      -webkit-app-region: drag;
+    }
+
+    .tab-btn, .brand-name, button, input, select, textarea {
+      -webkit-app-region: no-drag;
     }
 
     .tab-nav .brand-name {
@@ -818,9 +823,41 @@
       box-shadow: none;
       margin: 0;
     }
+
+    /* ── MODAL STYLES ── */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 26px;
+      max-width: 560px;
+      width: 100%;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.35);
+      color: var(--ink);
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .modal-header h2 {
+      margin: 0;
+      font-size: 19px;
+    }
   </style>
 </head>
-<body>
+<body style="-webkit-app-region: drag;">
 
   <!-- ── TAB NAV ── -->
   <nav class="tab-nav">
@@ -836,6 +873,9 @@
     </button>
     <button class="tab-btn" id="tab-overzicht" onclick="switchTab('overzicht')">
       <span class="tab-icon">📊</span> Overzicht
+    </button>
+    <button class="tab-btn" id="tab-settings" onclick="openSettingsModal()" style="margin-left: auto;" title="Google Drive mappen instellen">
+      <span class="tab-icon">📁</span> Google Drive Mappen
     </button>
   </nav>
 
@@ -1504,24 +1544,55 @@ BTW: NL003482523B06</textarea>
       invoiceEl.style.minHeight = '295mm';
       invoiceEl.style.overflow = 'hidden';
 
-      html2pdf().set(opt).from(invoiceEl).save().then(() => {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        invoiceEl.style.boxShadow = originalShadow;
-        invoiceEl.style.height = originalHeight;
-        invoiceEl.style.minHeight = originalMinHeight;
-        invoiceEl.style.overflow = originalOverflow;
-        setStatus('PDF is succesvol gedownload!', 'info');
-      }).catch((err) => {
-        console.error(err);
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        invoiceEl.style.boxShadow = originalShadow;
-        invoiceEl.style.height = originalHeight;
-        invoiceEl.style.minHeight = originalMinHeight;
-        invoiceEl.style.overflow = originalOverflow;
-        setStatus('Fout bij het genereren van de PDF.', 'warning');
-      });
+      if (window.electronAPI) {
+        html2pdf().set(opt).from(invoiceEl).outputPdf('datauristring').then((dataUri) => {
+          const base64Data = dataUri.split(',')[1];
+          return window.electronAPI.savePdfFile({
+            filename: opt.filename,
+            base64Data: base64Data
+          });
+        }).then((res) => {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          invoiceEl.style.boxShadow = originalShadow;
+          invoiceEl.style.height = originalHeight;
+          invoiceEl.style.minHeight = originalMinHeight;
+          invoiceEl.style.overflow = originalOverflow;
+          if (res && res.success) {
+            setStatus(`Direct opgeslagen in Google Drive map: ${res.path}`, 'info');
+          } else {
+            setStatus(res && res.message ? res.message : 'Fout bij opslaan.', 'warning');
+          }
+        }).catch((err) => {
+          console.error(err);
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          invoiceEl.style.boxShadow = originalShadow;
+          invoiceEl.style.height = originalHeight;
+          invoiceEl.style.minHeight = originalMinHeight;
+          invoiceEl.style.overflow = originalOverflow;
+          setStatus('Fout bij het genereren van de PDF.', 'warning');
+        });
+      } else {
+        html2pdf().set(opt).from(invoiceEl).save().then(() => {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          invoiceEl.style.boxShadow = originalShadow;
+          invoiceEl.style.height = originalHeight;
+          invoiceEl.style.minHeight = originalMinHeight;
+          invoiceEl.style.overflow = originalOverflow;
+          setStatus('PDF is succesvol gedownload!', 'info');
+        }).catch((err) => {
+          console.error(err);
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          invoiceEl.style.boxShadow = originalShadow;
+          invoiceEl.style.height = originalHeight;
+          invoiceEl.style.minHeight = originalMinHeight;
+          invoiceEl.style.overflow = originalOverflow;
+          setStatus('Fout bij het genereren van de PDF.', 'warning');
+        });
+      }
     }
 
     function triggerPrintWhenReady() {
@@ -1720,24 +1791,55 @@ BTW: NL003482523B06</textarea>
       docEl.style.minHeight = '295mm';
       docEl.style.overflow = 'hidden';
 
-      html2pdf().set(opt).from(docEl).save().then(() => {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        docEl.style.boxShadow = originalShadow;
-        docEl.style.height = originalHeight;
-        docEl.style.minHeight = originalMinHeight;
-        docEl.style.overflow = originalOverflow;
-        setOfferteStatus('PDF is succesvol gedownload!', 'info');
-      }).catch((err) => {
-        console.error(err);
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        docEl.style.boxShadow = originalShadow;
-        docEl.style.height = originalHeight;
-        docEl.style.minHeight = originalMinHeight;
-        docEl.style.overflow = originalOverflow;
-        setOfferteStatus('Fout bij het genereren van de PDF.', 'warning');
-      });
+      if (window.electronAPI) {
+        html2pdf().set(opt).from(docEl).outputPdf('datauristring').then((dataUri) => {
+          const base64Data = dataUri.split(',')[1];
+          return window.electronAPI.savePdfFile({
+            filename: opt.filename,
+            base64Data: base64Data
+          });
+        }).then((res) => {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          docEl.style.boxShadow = originalShadow;
+          docEl.style.height = originalHeight;
+          docEl.style.minHeight = originalMinHeight;
+          docEl.style.overflow = originalOverflow;
+          if (res && res.success) {
+            setOfferteStatus(`Direct opgeslagen in Google Drive map: ${res.path}`, 'info');
+          } else {
+            setOfferteStatus(res && res.message ? res.message : 'Fout bij opslaan.', 'warning');
+          }
+        }).catch((err) => {
+          console.error(err);
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          docEl.style.boxShadow = originalShadow;
+          docEl.style.height = originalHeight;
+          docEl.style.minHeight = originalMinHeight;
+          docEl.style.overflow = originalOverflow;
+          setOfferteStatus('Fout bij het genereren van de PDF.', 'warning');
+        });
+      } else {
+        html2pdf().set(opt).from(docEl).save().then(() => {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          docEl.style.boxShadow = originalShadow;
+          docEl.style.height = originalHeight;
+          docEl.style.minHeight = originalMinHeight;
+          docEl.style.overflow = originalOverflow;
+          setOfferteStatus('PDF is succesvol gedownload!', 'info');
+        }).catch((err) => {
+          console.error(err);
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          docEl.style.boxShadow = originalShadow;
+          docEl.style.height = originalHeight;
+          docEl.style.minHeight = originalMinHeight;
+          docEl.style.overflow = originalOverflow;
+          setOfferteStatus('Fout bij het genereren van de PDF.', 'warning');
+        });
+      }
     }
 
     function convertOfferteToInvoice() {
@@ -1853,6 +1955,18 @@ BTW: NL003482523B06</textarea>
         categorie: selectedCat,
         foto: receiptPhotoData
       };
+
+      if (window.electronAPI && receiptPhotoData) {
+        const receiptFileName = `Bonnetje_${datum}_${bonnetje.id}.png`;
+        window.electronAPI.saveReceiptFile({
+          filename: receiptFileName,
+          base64Data: receiptPhotoData
+        }).then((res) => {
+          if (res && res.success) {
+            console.log('Bonnetje opgeslagen in map:', res.path);
+          }
+        });
+      }
 
       bonnetjes.unshift(bonnetje);
       saveBonnetjes();
@@ -2004,9 +2118,93 @@ BTW: NL003482523B06</textarea>
       `).join('');
     }
 
+    /* ════════════ GOOGLE DRIVE / ELECTRON DESKTOP MAPPEN ════════════ */
+    function openSettingsModal() {
+      document.getElementById('settingsModal').style.display = 'flex';
+      refreshFolderSettingsDisplay();
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settingsModal').style.display = 'none';
+    }
+
+    function refreshFolderSettingsDisplay() {
+      if (!window.electronAPI) return;
+      window.electronAPI.getFolders().then((folders) => {
+        const invInput = document.getElementById('invoicesFolderPath');
+        const recInput = document.getElementById('receiptsFolderPath');
+        if (invInput) invInput.value = folders.invoicesFolder || 'Nog niet ingesteld (vraagt bij opslaan)';
+        if (recInput) recInput.value = folders.receiptsFolder || 'Nog niet ingesteld (vraagt bij opslaan)';
+      });
+    }
+
+    function chooseInvoicesFolder() {
+      if (!window.electronAPI) {
+        alert('Mappenkoppeling is beschikbaar in de Desktop App.');
+        return;
+      }
+      window.electronAPI.selectFolder().then((folderPath) => {
+        if (!folderPath) return;
+        window.electronAPI.saveFolderSetting('invoicesFolder', folderPath).then(() => {
+          refreshFolderSettingsDisplay();
+          alert('Facturen- & offertesmap ingesteld op:\n' + folderPath);
+        });
+      });
+    }
+
+    function chooseReceiptsFolder() {
+      if (!window.electronAPI) {
+        alert('Mappenkoppeling is beschikbaar in de Desktop App.');
+        return;
+      }
+      window.electronAPI.selectFolder().then((folderPath) => {
+        if (!folderPath) return;
+        window.electronAPI.saveFolderSetting('receiptsFolder', folderPath).then(() => {
+          refreshFolderSettingsDisplay();
+          alert('Bonnetjesmap ingesteld op:\n' + folderPath);
+        });
+      });
+    }
+
     /* ════════════ INIT ════════════ */
     load();
     renderBonnetjes();
+    if (window.electronAPI) {
+      refreshFolderSettingsDisplay();
+    }
   </script>
+
+  <!-- ── MODAL MAP-INSTELLINGEN (GOOGLE DRIVE) ── -->
+  <div id="settingsModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>📁 Google Drive Mappenkoppeling</h2>
+        <button class="icon-btn" onclick="closeSettingsModal()" style="font-size: 20px;">✕</button>
+      </div>
+      <p style="font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5;">
+        Koppel de lokale mappen van je <strong>Google Drive voor Desktop</strong> op je Mac. Gegenereerde PDF-facturen, offertes en bonnetjes worden automatisch rechtstreeks in deze mappen opgeslagen en gesynchroniseerd.
+      </p>
+
+      <div class="form-row" style="margin-bottom: 18px;">
+        <label style="font-weight: 600; display: block; margin-bottom: 6px;">Map voor Facturen &amp; Offertes</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="invoicesFolderPath" placeholder="Bijv. /Users/cees/Google Drive/Facturen" readonly style="flex:1; background: var(--panel); border: 1px solid var(--line); padding: 8px 12px; border-radius: 8px;">
+          <button class="btn primary" type="button" onclick="chooseInvoicesFolder()">Kies map...</button>
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-bottom: 24px;">
+        <label style="font-weight: 600; display: block; margin-bottom: 6px;">Map voor Bonnetjes</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="receiptsFolderPath" placeholder="Bijv. /Users/cees/Google Drive/Bonnetjes" readonly style="flex:1; background: var(--panel); border: 1px solid var(--line); padding: 8px 12px; border-radius: 8px;">
+          <button class="btn primary" type="button" onclick="chooseReceiptsFolder()">Kies map...</button>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn" type="button" onclick="closeSettingsModal()">Sluiten</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
