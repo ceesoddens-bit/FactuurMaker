@@ -1060,7 +1060,7 @@ BTW-nummer: NL005494071B57
 IBAN: NL96 BUNQ 2201 6029 72</textarea>
           </label>
           <label class="wide">Akkoord &amp; Voorwaarden tekst
-            <textarea data-offerte-field="terms">Bij akkoord op deze offerte verzoeken wij u deze per e-mail te bevestigen of ondertekend te retourneren. Op al onze diensten zijn onze algemene voorwaarden van toepassing.</textarea>
+            <textarea data-offerte-field="terms">Deze offerte is 14 dagen geldig na offertedatum. Bij akkoord op deze offerte verzoeken wij u deze per e-mail te bevestigen of ondertekend te retourneren. Op al onze diensten zijn onze algemene voorwaarden van toepassing.</textarea>
           </label>
         </section>
       </details>
@@ -1656,7 +1656,7 @@ BTW: NL003482523B06</textarea>
     /* ════════════ OFFERTE ════════════ */
     const offerteState = {
       company: `Cees AI Studio\nJachthoornstraat 67\n6219BN Maastricht\nE-mail: cees@arc-flow.nl\nKVK: 42092232\nBTW-nummer: NL005494071B57\nIBAN: NL96 BUNQ 2201 6029 72`,
-      terms: 'Bij akkoord op deze offerte verzoeken wij u deze per e-mail te bevestigen of ondertekend te retourneren. Op al onze diensten zijn onze algemene voorwaarden van toepassing.',
+      terms: 'Deze offerte is 14 dagen geldig na offertedatum. Bij akkoord op deze offerte verzoeken wij u deze per e-mail te bevestigen of ondertekend te retourneren. Op al onze diensten zijn onze algemene voorwaarden van toepassing.',
       offerteNumber: 'OFF-00001',
       vatRate: '21',
       offerteDate: '',
@@ -1674,7 +1674,7 @@ BTW: NL003482523B06</textarea>
       const saved = localStorage.getItem(offerteStorageKey);
       if (saved) Object.assign(offerteState, JSON.parse(saved));
       if (!offerteState.offerteDate) offerteState.offerteDate = today();
-      if (!offerteState.validUntilDate) offerteState.validUntilDate = today(30);
+      if (!offerteState.validUntilDate) offerteState.validUntilDate = today(14);
       bindOfferteFields();
       renderOfferteLinesEditor();
       renderOfferte();
