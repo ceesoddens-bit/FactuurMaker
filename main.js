@@ -15,7 +15,14 @@ function loadSettings() {
   } catch (err) {
     console.error('Fout bij het laden van instellingen:', err);
   }
-  return { invoicesFolder: '', receiptsFolder: '' };
+  return {
+    rootDriveFolder: '',
+    verkoopfacturenFolder: '',
+    offertesFolder: '',
+    inkoopZakelijkFolder: '',
+    inkoopPriveFolder: '',
+    autoQuarter: true
+  };
 }
 
 function saveSettings(settings) {
@@ -24,6 +31,46 @@ function saveSettings(settings) {
   } catch (err) {
     console.error('Fout bij het opslaan van instellingen:', err);
   }
+}
+
+function getQuarterString(dateStr) {
+  const date = dateStr ? new Date(`${dateStr}T12:00:00`) : new Date();
+  if (isNaN(date.getTime())) return 'Q' + (Math.floor(new Date().getMonth() / 3) + 1);
+  const month = date.getMonth(); // 0-11
+  return 'Q' + (Math.floor(month / 3) + 1);
+}
+
+function resolveTargetDirectory({ baseFolder, date, docType, subType }) {
+  const settings = loadSettings();
+  let targetDir = baseFolder;
+
+  // Primary fallback if specific folder not set: use rootDriveFolder
+  if ((!targetDir || !fs.existsSync(targetDir)) && settings.rootDriveFolder) {
+    const quarter = getQuarterString(date);
+    if (docType === 'factuur') {
+      targetDir = path.join(settings.rootDriveFolder, quarter, 'verkoopfacturen');
+    } else if (docType === 'offerte') {
+      targetDir = path.join(settings.rootDriveFolder, quarter, 'offertes');
+    } else if (docType === 'inkoop') {
+      const typeSub = subType === 'prive' ? 'prive' : 'zakelijk';
+      targetDir = path.join(settings.rootDriveFolder, quarter, 'inkoopfacturen', typeSub);
+    }
+  }
+
+  // If autoQuarter is enabled on a specific baseFolder that doesn't already end in Q1-Q4
+  if (targetDir && settings.autoQuarter && settings.rootDriveFolder && baseFolder === settings.rootDriveFolder) {
+    const quarter = getQuarterString(date);
+    if (docType === 'factuur') {
+      targetDir = path.join(settings.rootDriveFolder, quarter, 'verkoopfacturen');
+    } else if (docType === 'offerte') {
+      targetDir = path.join(settings.rootDriveFolder, quarter, 'offertes');
+    } else if (docType === 'inkoop') {
+      const typeSub = subType === 'prive' ? 'prive' : 'zakelijk';
+      targetDir = path.join(settings.rootDriveFolder, quarter, 'inkoopfacturen', typeSub);
+    }
+  }
+
+  return targetDir;
 }
 
 function createWindow() {
@@ -75,30 +122,44 @@ ipcMain.handle('select-folder', async () => {
   return result.filePaths[0];
 });
 
-ipcMain.handle('save-folder-setting', async (event, { key, path: folderPath }) => {
+ipcMain.handle('save-folder-setting', async (event, { key, path: folderPath, value }) => {
   const settings = loadSettings();
-  settings[key] = folderPath;
+  if (key) {
+    settings[key] = folderPath !== undefined ? folderPath : value;
+  }
   saveSettings(settings);
   return settings;
 });
 
-ipcMain.handle('save-pdf-file', async (event, { filename, base64Data, targetFolder }) => {
+ipcMain.handle('save-pdf-file', async (event, { filename, base64Data, docType, date }) => {
   try {
     const settings = loadSettings();
-    let folder = targetFolder || settings.invoicesFolder;
+    let configuredFolder = docType === 'offerte' ? settings.offertesFolder : settings.verkoopfacturenFolder;
+    if (!configuredFolder && settings.invoicesFolder) configuredFolder = settings.invoicesFolder;
+
+    let folder = resolveTargetDirectory({
+      baseFolder: configuredFolder,
+      date,
+      docType: docType || 'factuur'
+    });
 
     if (!folder || !fs.existsSync(folder)) {
-      // Prompt user for folder if not configured
-      const dialogResult = await dialog.showOpenDialog(mainWindow, {
-        properties: ['openDirectory', 'createDirectory'],
-        title: 'Selecteer map voor opslaan facturen/offertes'
-      });
-      if (dialogResult.canceled || !dialogResult.filePaths.length) {
-        return { success: false, message: 'Geen map geselecteerd.' };
+      // Create folder recursively if inside configured root drive
+      if (folder) {
+        fs.mkdirSync(folder, { recursive: true });
+      } else {
+        const dialogResult = await dialog.showOpenDialog(mainWindow, {
+          properties: ['openDirectory', 'createDirectory'],
+          title: `Selecteer map voor ${docType === 'offerte' ? 'offertes' : 'verkoopfacturen'}`
+        });
+        if (dialogResult.canceled || !dialogResult.filePaths.length) {
+          return { success: false, message: 'Geen map geselecteerd.' };
+        }
+        folder = dialogResult.filePaths[0];
+        if (docType === 'offerte') settings.offertesFolder = folder;
+        else settings.verkoopfacturenFolder = folder;
+        saveSettings(settings);
       }
-      folder = dialogResult.filePaths[0];
-      settings.invoicesFolder = folder;
-      saveSettings(settings);
     }
 
     const targetPath = path.join(folder, filename);
@@ -111,22 +172,36 @@ ipcMain.handle('save-pdf-file', async (event, { filename, base64Data, targetFold
   }
 });
 
-ipcMain.handle('save-receipt-file', async (event, { filename, base64Data, targetFolder }) => {
+ipcMain.handle('save-receipt-file', async (event, { filename, base64Data, date, subType }) => {
   try {
     const settings = loadSettings();
-    let folder = targetFolder || settings.receiptsFolder;
+    const isPrive = subType === 'prive';
+    let configuredFolder = isPrive ? settings.inkoopPriveFolder : settings.inkoopZakelijkFolder;
+    if (!configuredFolder && settings.receiptsFolder) configuredFolder = settings.receiptsFolder;
+
+    let folder = resolveTargetDirectory({
+      baseFolder: configuredFolder,
+      date,
+      docType: 'inkoop',
+      subType: isPrive ? 'prive' : 'zakelijk'
+    });
 
     if (!folder || !fs.existsSync(folder)) {
-      const dialogResult = await dialog.showOpenDialog(mainWindow, {
-        properties: ['openDirectory', 'createDirectory'],
-        title: 'Selecteer map voor opslaan bonnetjes'
-      });
-      if (dialogResult.canceled || !dialogResult.filePaths.length) {
-        return { success: false, message: 'Geen map geselecteerd.' };
+      if (folder) {
+        fs.mkdirSync(folder, { recursive: true });
+      } else {
+        const dialogResult = await dialog.showOpenDialog(mainWindow, {
+          properties: ['openDirectory', 'createDirectory'],
+          title: `Selecteer map voor inkoopfacturen (${isPrive ? 'privé' : 'zakelijk'})`
+        });
+        if (dialogResult.canceled || !dialogResult.filePaths.length) {
+          return { success: false, message: 'Geen map geselecteerd.' };
+        }
+        folder = dialogResult.filePaths[0];
+        if (isPrive) settings.inkoopPriveFolder = folder;
+        else settings.inkoopZakelijkFolder = folder;
+        saveSettings(settings);
       }
-      folder = dialogResult.filePaths[0];
-      settings.receiptsFolder = folder;
-      saveSettings(settings);
     }
 
     const targetPath = path.join(folder, filename);
