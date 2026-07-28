@@ -1,7 +1,7 @@
 {
   "name": "factuur-maker",
   "version": "1.0.0",
-  "description": "Cees AI Studio - Factuur, Offerte & Bonnetjes Desktop App voor macOS",
+  "description": "Cees AI Studio - Bedrijfssoftware voor macOS",
   "main": "main.js",
   "scripts": {
     "start": "electron .",

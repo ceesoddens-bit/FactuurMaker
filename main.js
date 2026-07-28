@@ -79,7 +79,7 @@ function createWindow() {
     height: 880,
     minWidth: 950,
     minHeight: 650,
-    title: 'Cees AI Studio - FactuurMaker',
+    title: 'Cees AI Studio - Bedrijfssoftware',
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 14, y: 14 },
     webPreferences: {

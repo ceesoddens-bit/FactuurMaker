@@ -1,4 +1,4 @@
-# Cees AI Studio FactuurMaker
+# Cees AI Studio — Bedrijfssoftware
 
 Een eenvoudige statische factuurgenerator voor Cees AI Studio.
 
