@@ -1611,7 +1611,7 @@ BTW: NL003482523B06</textarea>
       notes: 'Dank voor de opdracht en het vertrouwen.',
       logo: 'Logo_CeesAIStudio_003.png',
       lines: [
-        { description: 'Motion Graphics Carbon Equity\nUitgevoerd in juli 2026', quantity: 1, rate: 600 }
+        { description: 'Motion Graphics Carbon Equity\nUitgevoerd in april/mei 2026', quantity: 1, rate: 600 }
       ]
     };
 
@@ -1657,8 +1657,8 @@ BTW: NL003482523B06</textarea>
           state.lines[0].rate = 600;
           updated = true;
         }
-        if (state.lines[0].description === 'Carbon Equity' || state.lines[0].description === 'Motion Graphics Carbon Equity') {
-          state.lines[0].description = 'Motion Graphics Carbon Equity\nUitgevoerd in juli 2026';
+        if (state.lines[0].description.includes('Carbon Equity')) {
+          state.lines[0].description = 'Motion Graphics Carbon Equity\nUitgevoerd in april/mei 2026';
           updated = true;
         }
       }
