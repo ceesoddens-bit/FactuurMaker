@@ -752,6 +752,15 @@
       -webkit-app-region: no-drag;
     }
 
+    /* ── KLANTENBEHEER TAB ── */
+    #pane-klanten.active {
+      display: block;
+      height: calc(100vh - 51px);
+      overflow-y: auto;
+      padding: 24px 32px;
+      -webkit-app-region: no-drag;
+    }
+
     .explorer-container {
       max-width: 1200px;
       margin: 0 auto;
@@ -2855,6 +2864,7 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
       }
       populateClientDropdowns();
       bindClientDropdownEvents();
+      renderKlantenList();
     }
 
     async function persistKlanten() {
