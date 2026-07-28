@@ -1367,7 +1367,7 @@ BTW: NL003482523B06</textarea>
       notes: 'Dank voor de opdracht en het vertrouwen.',
       logo: 'Logo_CeesAIStudio_003.png',
       lines: [
-        { description: 'Carbon Equity', quantity: 1, rate: 495.87 }
+        { description: 'Carbon Equity', quantity: 1, rate: 600 }
       ]
     };
 
@@ -1401,6 +1401,10 @@ BTW: NL003482523B06</textarea>
       }
       const saved = localStorage.getItem(storageKey);
       if (saved) Object.assign(state, JSON.parse(saved));
+      if (state.lines && state.lines.length > 0 && state.lines[0].rate === 495.87) {
+        state.lines[0].rate = 600;
+        localStorage.setItem(storageKey, JSON.stringify(state));
+      }
       if (!state.invoiceDate) state.invoiceDate = today();
       if (!state.dueDate) state.dueDate = today(14);
       bindFields();
