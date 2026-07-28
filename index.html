@@ -2576,7 +2576,7 @@ BTW: NL003482523B06</textarea>
 
         let icon = '📄';
         if (item.isDirectory) icon = '📂';
-        else if (item.name.endsWith('.pdf')) icon = '🔴';
+        else if (item.name.endsWith('.pdf')) icon = '📕';
         else if (/\.(png|jpe?g|webp|gif|svg)$/i.test(item.name)) icon = '🖼️';
 
         const sizeStr = item.isDirectory ? '-' : formatBytes(item.size);
