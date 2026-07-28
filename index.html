@@ -1095,6 +1095,7 @@
 
       <div class="actions">
         <button class="btn primary" id="printBtn" type="button">Download PDF</button>
+        <button class="btn secondary" id="emailBtn" type="button" onclick="openEmailModal(false)">✉️ Stel mail op</button>
         <button class="btn" id="saveBtn" type="button">Bewaar</button>
         <button class="btn danger" id="resetBtn" type="button">Leegmaken</button>
       </div>
@@ -1240,6 +1241,7 @@ BTW: NL003482523B06</textarea>
 
       <div class="actions">
         <button class="btn primary" id="offertePrintBtn" type="button">Download PDF</button>
+        <button class="btn secondary" id="offerteEmailBtn" type="button" onclick="openEmailModal(true)">✉️ Stel mail op</button>
         <button class="btn success" id="offerteConvertToInvoiceBtn" type="button" title="Kopieer gegevens direct naar factuur">➡️ Zet om naar factuur</button>
         <button class="btn" id="offerteSaveBtn" type="button">Bewaar</button>
         <button class="btn danger" id="offerteResetBtn" type="button">Leegmaken</button>
@@ -1847,15 +1849,17 @@ BTW: NL003482523B06</textarea>
             setStatus(
               `✅ <strong>PDF succesvol opgeslagen!</strong><br>` +
               `<span style="font-size:0.88em; opacity:0.85;">📂 ${escapeHtml(res.path)}</span><br>` +
-              `<div style="margin-top:6px; display:flex; gap:8px; align-items:center;">` +
+              `<div style="margin-top:6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">` +
               `<button class="btn secondary" id="openPdfBtn" style="padding:4px 10px; font-size:12px; cursor:pointer;">📂 Open PDF</button>` +
               `<button class="btn secondary" id="showPdfFolderBtn" style="padding:4px 10px; font-size:12px; cursor:pointer;">🔍 Toon in Finder</button>` +
+              `<button class="btn secondary" id="openEmailFromStatusBtn" style="padding:4px 10px; font-size:12px; cursor:pointer;">✉️ Stel mail op</button>` +
               `</div>`,
               'info',
               true
             );
             const openBtn = document.getElementById('openPdfBtn');
             const showBtn = document.getElementById('showPdfFolderBtn');
+            const mailBtn = document.getElementById('openEmailFromStatusBtn');
             if (openBtn) {
               openBtn.onclick = () => {
                 window.electronAPI.openPath(res.path).then((r) => {
@@ -1869,6 +1873,9 @@ BTW: NL003482523B06</textarea>
                   if (r && !r.success) alert(r.error || 'Kon map niet tonen.');
                 });
               };
+            }
+            if (mailBtn) {
+              mailBtn.onclick = () => openEmailModal(false);
             }
           } else {
             const errMsg = (res && (res.message || res.error)) ? (res.message || res.error) : 'Fout bij opslaan.';
@@ -2698,6 +2705,77 @@ BTW: NL003482523B06</textarea>
       return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     }
 
+    /* ════════════ E-MAIL OPSTELLEN LOGIC ════════════ */
+    function openEmailModal(isOfferte = false) {
+      const currentState = isOfferte ? offerteState : state;
+      const docType = isOfferte ? 'offerte' : 'factuur';
+      const docNum = isOfferte ? (currentState.offerteNumber || 'Concept') : (currentState.invoiceNumber || 'Concept');
+      
+      let contactName = 'Rogier';
+      const clientText = currentState.client || '';
+      const match = clientText.match(/t\.a\.v\.\s*([^\n\r]+)/i);
+      if (match && match[1]) {
+        contactName = match[1].trim().split(' ')[0];
+      } else if (clientText.split('\n')[0].trim()) {
+        contactName = clientText.split('\n')[0].trim();
+      }
+
+      let projectDesc = 'de werkzaamheden';
+      if (isOfferte && currentState.items && currentState.items.length > 0 && currentState.items[0].description) {
+        projectDesc = currentState.items[0].description.split('\n')[0].trim();
+      } else if (!isOfferte && currentState.lines && currentState.lines.length > 0 && currentState.lines[0].description) {
+        projectDesc = currentState.lines[0].description.split('\n')[0].trim();
+      }
+
+      const subject = `${isOfferte ? 'Offerte' : 'Factuur'} ${docNum} voor ${projectDesc}`;
+      const body = `Hoi ${contactName},\n\nIn de bijlage vind je ${docType} ${docNum} voor ${projectDesc}.\n\nMet vriendelijke groet,\nCees Oddens`;
+
+      const subjInput = document.getElementById('emailSubjectInput');
+      const bodyTextarea = document.getElementById('emailBodyTextarea');
+      const toast = document.getElementById('emailToast');
+      const modal = document.getElementById('emailModal');
+
+      if (subjInput) subjInput.value = subject;
+      if (bodyTextarea) bodyTextarea.value = body;
+      if (toast) toast.textContent = '';
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeEmailModal() {
+      const modal = document.getElementById('emailModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function copyEmailText() {
+      const bodyTextarea = document.getElementById('emailBodyTextarea');
+      const toast = document.getElementById('emailToast');
+      if (!bodyTextarea) return;
+      navigator.clipboard.writeText(bodyTextarea.value).then(() => {
+        if (toast) {
+          toast.textContent = '✓ Mailtekst gekopieerd naar klembord!';
+          setTimeout(() => { toast.textContent = ''; }, 3000);
+        }
+      }).catch((e) => {
+        console.error('Kopiëren mislukt:', e);
+      });
+    }
+
+    function openDefaultMailClient() {
+      const subjInput = document.getElementById('emailSubjectInput');
+      const bodyTextarea = document.getElementById('emailBodyTextarea');
+      if (!subjInput || !bodyTextarea) return;
+
+      const subject = encodeURIComponent(subjInput.value);
+      const body = encodeURIComponent(bodyTextarea.value);
+      const mailtoUrl = `mailto:?subject=${subject}&body=${body}`;
+
+      if (window.electronAPI && window.electronAPI.openPath) {
+        window.electronAPI.openPath(mailtoUrl);
+      } else {
+        window.location.href = mailtoUrl;
+      }
+    }
+
     /* ════════════ INIT ════════════ */
     load();
     renderBonnetjes();
@@ -2764,6 +2842,37 @@ BTW: NL003482523B06</textarea>
 
       <div style="display: flex; justify-content: flex-end; gap: 10px;">
         <button class="btn" type="button" onclick="closeSettingsModal()">Sluiten</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL E-MAIL OPSTELLEN ── -->
+  <div id="emailModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card" style="max-width: 580px;">
+      <div class="modal-header">
+        <h2>✉️ E-mail Opstellen</h2>
+        <button class="icon-btn" type="button" onclick="closeEmailModal()" style="font-size: 20px;">✕</button>
+      </div>
+      <p style="font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.4;">
+        Hieronder staat de klaargezette e-mailtekst met de juiste gegevens van jouw document.
+      </p>
+
+      <div style="margin-bottom: 14px;">
+        <label style="font-weight: 600; display: block; margin-bottom: 4px; font-size: 13px;">Onderwerp</label>
+        <input type="text" id="emailSubjectInput" style="width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; background: var(--panel);">
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="font-weight: 600; display: block; margin-bottom: 4px; font-size: 13px;">Bericht</label>
+        <textarea id="emailBodyTextarea" style="width: 100%; height: 140px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; line-height: 1.5; resize: vertical; font-family: inherit;"></textarea>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <span id="emailToast" style="font-size: 13px; color: var(--success); font-weight: 600;"></span>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn secondary" type="button" onclick="copyEmailText()">📋 Kopieer Tekst</button>
+          <button class="btn primary" type="button" onclick="openDefaultMailClient()">✉️ Open in Mail-app</button>
+        </div>
       </div>
     </div>
   </div>
