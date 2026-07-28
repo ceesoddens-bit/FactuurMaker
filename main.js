@@ -149,7 +149,7 @@ ipcMain.handle('save-folder-setting', async (event, { key, path: folderPath, val
   return settings;
 });
 
-ipcMain.handle('save-pdf-file', async (event, { filename, base64Data, docType, date }) => {
+ipcMain.handle('save-pdf-file', async (event, { filename, base64Data, pdfArrayBuffer, docType, date }) => {
   try {
     const settings = loadSettings();
     let configuredFolder = docType === 'offerte' ? settings.offertesFolder : settings.verkoopfacturenFolder;
@@ -188,7 +188,21 @@ ipcMain.handle('save-pdf-file', async (event, { filename, base64Data, docType, d
       targetPath = dialogResult.filePath;
     }
 
-    const buffer = Buffer.from(base64Data, 'base64');
+    let buffer;
+    if (pdfArrayBuffer) {
+      buffer = Buffer.from(pdfArrayBuffer);
+    } else if (base64Data) {
+      const cleaned = base64Data.replace(/^data:application\/pdf;base64,/, '');
+      buffer = Buffer.from(cleaned, 'base64');
+    } else {
+      return { success: false, error: 'Geen PDF data ontvangen.' };
+    }
+
+    if (buffer.length < 100 || !buffer.toString('utf8', 0, 5).startsWith('%PDF')) {
+      console.error('Ongeldige PDF data ontvangen');
+      return { success: false, error: 'Het gegenereerde bestand bevat geen geldige PDF data.' };
+    }
+
     fs.writeFileSync(targetPath, buffer);
     return { success: true, path: targetPath };
   } catch (err) {
@@ -298,10 +312,13 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
 ipcMain.handle('open-path', async (event, filePath) => {
   try {
     if (filePath && fs.existsSync(filePath)) {
-      await shell.openPath(filePath);
+      const errMsg = await shell.openPath(filePath);
+      if (errMsg) {
+        return { success: false, error: errMsg };
+      }
       return { success: true };
     }
-    return { success: false, error: 'Bestand bestaat niet.' };
+    return { success: false, error: `Bestand niet gevonden op: ${filePath}` };
   } catch (err) {
     return { success: false, error: err.message };
   }
@@ -313,7 +330,7 @@ ipcMain.handle('show-in-folder', async (event, filePath) => {
       shell.showItemInFolder(filePath);
       return { success: true };
     }
-    return { success: false, error: 'Bestand of map bestaat niet.' };
+    return { success: false, error: `Bestand niet gevonden op: ${filePath}` };
   } catch (err) {
     return { success: false, error: err.message };
   }

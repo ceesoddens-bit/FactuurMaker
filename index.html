@@ -1822,11 +1822,10 @@ BTW: NL003482523B06</textarea>
       invoiceEl.style.overflow = 'visible';
 
       if (window.electronAPI) {
-        html2pdf().set(opt).from(invoiceEl).outputPdf('datauristring').then((dataUri) => {
-          const base64Data = dataUri.split(',')[1];
+        html2pdf().set(opt).from(invoiceEl).outputPdf('arraybuffer').then((pdfArrayBuffer) => {
           return window.electronAPI.savePdfFile({
             filename: opt.filename,
-            base64Data: base64Data,
+            pdfArrayBuffer: pdfArrayBuffer,
             docType: 'factuur',
             date: state.invoiceDate
           });
@@ -1838,17 +1837,32 @@ BTW: NL003482523B06</textarea>
           invoiceEl.style.minHeight = originalMinHeight;
           invoiceEl.style.overflow = originalOverflow;
           if (res && res.success) {
-            const pathEscaped = res.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             setStatus(
               `✅ <strong>PDF succesvol opgeslagen!</strong><br>` +
               `<span style="font-size:0.88em; opacity:0.85;">📂 ${escapeHtml(res.path)}</span><br>` +
               `<div style="margin-top:6px; display:flex; gap:8px; align-items:center;">` +
-              `<button class="btn secondary" style="padding:4px 10px; font-size:12px; cursor:pointer;" onclick="window.electronAPI.openPath('${pathEscaped}')">📂 Open PDF</button>` +
-              `<button class="btn secondary" style="padding:4px 10px; font-size:12px; cursor:pointer;" onclick="window.electronAPI.showInFolder('${pathEscaped}')">🔍 Toon in Finder</button>` +
+              `<button class="btn secondary" id="openPdfBtn" style="padding:4px 10px; font-size:12px; cursor:pointer;">📂 Open PDF</button>` +
+              `<button class="btn secondary" id="showPdfFolderBtn" style="padding:4px 10px; font-size:12px; cursor:pointer;">🔍 Toon in Finder</button>` +
               `</div>`,
               'info',
               true
             );
+            const openBtn = document.getElementById('openPdfBtn');
+            const showBtn = document.getElementById('showPdfFolderBtn');
+            if (openBtn) {
+              openBtn.onclick = () => {
+                window.electronAPI.openPath(res.path).then((r) => {
+                  if (r && !r.success) alert(r.error || 'Kon PDF niet openen.');
+                });
+              };
+            }
+            if (showBtn) {
+              showBtn.onclick = () => {
+                window.electronAPI.showInFolder(res.path).then((r) => {
+                  if (r && !r.success) alert(r.error || 'Kon map niet tonen.');
+                });
+              };
+            }
           } else {
             const errMsg = (res && (res.message || res.error)) ? (res.message || res.error) : 'Fout bij opslaan.';
             setStatus(errMsg, 'warning');
