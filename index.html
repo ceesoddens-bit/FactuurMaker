@@ -1073,6 +1073,9 @@
     <button class="tab-btn" id="tab-overzicht" onclick="switchTab('overzicht')">
       <span class="tab-icon">📊</span> Overzicht
     </button>
+    <button class="tab-btn" id="tab-klanten" onclick="switchTab('klanten')">
+      <span class="tab-icon">👥</span> Klanten
+    </button>
     <button class="tab-btn" id="tab-explorer" onclick="switchTab('explorer')">
       <span class="tab-icon">📂</span> Bestanden
     </button>
@@ -1144,14 +1147,16 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
           <label>Vervaldatum
             <input data-field="dueDate" type="date">
           </label>
+          <label class="wide">Selecteer Klant (Snelkeuze)
+            <div style="display: flex; gap: 8px; margin-top: 4px; margin-bottom: 6px;">
+              <select id="invoiceClientSelect" style="flex: 1; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 13px; background: #fff;">
+                <option value="">-- Kies een opgeslagen klant... --</option>
+              </select>
+              <button class="btn secondary" type="button" onclick="saveCurrentInvoiceClientAsPreset()" style="padding: 4px 10px; font-size: 12px; white-space: nowrap;" title="Sla ingevulde klant op in klantenbestand">💾 Opslaan als Klant</button>
+            </div>
+          </label>
           <label class="wide">Klantgegevens
-            <textarea data-field="client">Woonwensmakelaar
-t.a.v. Ronaldo Lemmens
-Pastoor Vonckenstraat 21
-6161 GE Geleen
-
-KVK: 80707823
-BTW: NL003482523B06</textarea>
+            <textarea data-field="client"></textarea>
           </label>
         </section>
       </details>
@@ -1291,14 +1296,16 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
           <label>Geldig tot
             <input data-offerte-field="validUntilDate" type="date">
           </label>
+          <label class="wide">Selecteer Klant (Snelkeuze)
+            <div style="display: flex; gap: 8px; margin-top: 4px; margin-bottom: 6px;">
+              <select id="offerteClientSelect" style="flex: 1; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 13px; background: #fff;">
+                <option value="">-- Kies een opgeslagen klant... --</option>
+              </select>
+              <button class="btn secondary" type="button" onclick="saveCurrentOfferteClientAsPreset()" style="padding: 4px 10px; font-size: 12px; white-space: nowrap;" title="Sla ingevulde klant op in klantenbestand">💾 Opslaan als Klant</button>
+            </div>
+          </label>
           <label class="wide">Klantgegevens
-            <textarea data-offerte-field="client">Woonwensmakelaar
-t.a.v. Ronaldo Lemmens
-Pastoor Vonckenstraat 21
-6161 GE Geleen
-
-KVK: 80707823
-BTW: NL003482523B06</textarea>
+            <textarea data-offerte-field="client"></textarea>
           </label>
         </section>
       </details>
@@ -1580,6 +1587,25 @@ BTW: NL003482523B06</textarea>
             </tbody>
           </table>
         </div>
+  <!-- ════════════════════════════════════════
+       TAB 6 — KLANTENBEHEER (CRM)
+  ════════════════════════════════════════ -->
+  <div id="pane-klanten" class="tab-pane">
+    <div style="max-width: 1100px; margin: 0 auto; padding: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h1 style="margin: 0; font-size: 22px; color: var(--ink);">👥 Klantenbeheer</h1>
+          <span style="font-size: 13px; color: var(--muted);">Opgeslagen relaties en vaste factuurregels (gekoppeld aan <code>klanten.json</code>)</span>
+        </div>
+        <button class="btn primary" type="button" onclick="openKlantModal()">➕ Nieuwe Klant Toevoegen</button>
+      </div>
+
+      <div style="margin-bottom: 20px; display: flex; gap: 12px;">
+        <input type="text" id="klantenSearch" placeholder="🔍 Zoek klant op naam, contactpersoon, adres of plaats..." oninput="renderKlantenList()" style="flex: 1; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--line); font-size: 14px; background: #fff;">
+      </div>
+
+      <div id="klantenGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px;">
+        <!-- Dynamic Klanten Cards -->
       </div>
     </div>
   </div>
@@ -1593,6 +1619,7 @@ BTW: NL003482523B06</textarea>
       document.getElementById('tab-' + name).classList.add('active');
       if (name === 'overzicht') renderOverzicht();
       if (name === 'explorer') loadExplorerFolder();
+      if (name === 'klanten') renderKlantenList();
     }
 
     /* ════════════ INVOICE (unchanged logic) ════════════ */
@@ -1675,6 +1702,7 @@ BTW: NL003482523B06</textarea>
       render();
       validateRequiredBusinessDetails();
       loadOfferte();
+      initKlanten();
       if (document.body.classList.contains('print-mode')) {
         triggerPrintWhenReady();
       }
@@ -2776,6 +2804,359 @@ BTW: NL003482523B06</textarea>
       }
     }
 
+    /* ════════════ KLANTENBEHEER (CRM & JSON STORAGE) ════════════ */
+    let klantenList = [];
+
+    async function initKlanten() {
+      if (window.electronAPI && window.electronAPI.getKlanten) {
+        try {
+          klantenList = await window.electronAPI.getKlanten();
+        } catch (e) {
+          console.error('Fout bij laden klanten via IPC:', e);
+        }
+      }
+      if (!klantenList || !Array.isArray(klantenList) || klantenList.length === 0) {
+        const saved = localStorage.getItem('cees-ai-studio-klanten-v1');
+        if (saved) {
+          try { klantenList = JSON.parse(saved); } catch (e) {}
+        }
+      }
+      if (!klantenList || klantenList.length === 0) {
+        klantenList = [
+          {
+            id: 'klant-woonwensmakelaar',
+            name: 'Woonwensmakelaar',
+            contact: 't.a.v. Ronaldo Lemmens',
+            address: 'Pastoor Vonckenstraat 21',
+            zipCity: '6161 GE Geleen',
+            kvk: '80707823',
+            btw: 'NL003482523B06',
+            formattedClientText: `Woonwensmakelaar\nt.a.v. Ronaldo Lemmens\nPastoor Vonckenstraat 21\n6161 GE Geleen\n\nKVK: 80707823\nBTW: NL003482523B06`,
+            defaultLines: [
+              { description: 'AI werkzaamheden - geleverd in juni 2026', quantity: 1, rate: 850 },
+              { description: 'AI werkzaamheden - geleverd in juli 2026', quantity: 1, rate: 850 }
+            ]
+          },
+          {
+            id: 'klant-de-graphics',
+            name: 'De Graphics',
+            contact: 't.a.v. Rogier Leijen',
+            address: 'Naarderweg 16',
+            zipCity: '1217 GL Hilversum',
+            kvk: '72440295',
+            btw: '',
+            formattedClientText: `De Graphics\nt.a.v. Rogier Leijen\nNaarderweg 16\n1217 GL Hilversum\n\nKVK: 72440295`,
+            defaultLines: [
+              { description: 'Motion Graphics Carbon Equity\nUitgevoerd in april/mei 2026', quantity: 1, rate: 600 }
+            ]
+          }
+        ];
+        persistKlanten();
+      }
+      populateClientDropdowns();
+      bindClientDropdownEvents();
+    }
+
+    async function persistKlanten() {
+      localStorage.setItem('cees-ai-studio-klanten-v1', JSON.stringify(klantenList));
+      if (window.electronAPI && window.electronAPI.saveKlanten) {
+        try {
+          await window.electronAPI.saveKlanten(klantenList);
+        } catch (e) {
+          console.error('Fout bij opslaan klanten via IPC:', e);
+        }
+      }
+      populateClientDropdowns();
+      renderKlantenList();
+    }
+
+    function populateClientDropdowns() {
+      const invoiceSelect = $('#invoiceClientSelect');
+      const offerteSelect = $('#offerteClientSelect');
+
+      let optionsHtml = '<option value="">-- Kies uit opgeslagen klanten... --</option>';
+      klantenList.forEach(k => {
+        const sub = k.contact || k.zipCity || '';
+        optionsHtml += `<option value="${escapeHtml(k.id)}">${escapeHtml(k.name)}${sub ? ' (' + escapeHtml(sub) + ')' : ''}</option>`;
+      });
+
+      if (invoiceSelect) invoiceSelect.innerHTML = optionsHtml;
+      if (offerteSelect) offerteSelect.innerHTML = optionsHtml;
+    }
+
+    function bindClientDropdownEvents() {
+      const invoiceSelect = $('#invoiceClientSelect');
+      if (invoiceSelect && !invoiceSelect.dataset.bound) {
+        invoiceSelect.dataset.bound = 'true';
+        invoiceSelect.addEventListener('change', (e) => {
+          const klantId = e.target.value;
+          if (!klantId) return;
+          const k = klantenList.find(item => item.id === klantId);
+          if (k) {
+            state.client = k.formattedClientText;
+            const input = document.querySelector('[data-field="client"]');
+            if (input) input.value = state.client;
+            if (k.defaultLines && k.defaultLines.length > 0) {
+              state.lines = JSON.parse(JSON.stringify(k.defaultLines));
+              renderLinesEditor();
+            }
+            render();
+            validateRequiredBusinessDetails();
+          }
+        });
+      }
+
+      const offerteSelect = $('#offerteClientSelect');
+      if (offerteSelect && !offerteSelect.dataset.bound) {
+        offerteSelect.dataset.bound = 'true';
+        offerteSelect.addEventListener('change', (e) => {
+          const klantId = e.target.value;
+          if (!klantId) return;
+          const k = klantenList.find(item => item.id === klantId);
+          if (k) {
+            offerteState.client = k.formattedClientText;
+            const input = document.querySelector('[data-offerte-field="client"]');
+            if (input) input.value = offerteState.client;
+            if (k.defaultLines && k.defaultLines.length > 0) {
+              offerteState.lines = JSON.parse(JSON.stringify(k.defaultLines));
+              renderOfferteLinesEditor();
+            }
+            renderOfferte();
+          }
+        });
+      }
+    }
+
+    function renderKlantenList() {
+      const grid = $('#klantenGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      const query = ($('#klantenSearch')?.value || '').toLowerCase().trim();
+      const filtered = klantenList.filter(k => {
+        if (!query) return true;
+        const text = `${k.name} ${k.contact} ${k.address} ${k.zipCity} ${k.kvk} ${k.btw}`.toLowerCase();
+        return text.includes(query);
+      });
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--muted);">Geen klanten gevonden.</div>`;
+        return;
+      }
+
+      filtered.forEach(k => {
+        const card = document.createElement('div');
+        card.className = 'modal-card';
+        card.style.maxWidth = '100%';
+        card.style.boxShadow = '0 4px 15px rgba(0,0,0,0.06)';
+        card.style.border = '1px solid var(--line)';
+        card.style.padding = '18px 20px';
+
+        let linesSummary = 'Geen standaard regels';
+        if (k.defaultLines && k.defaultLines.length > 0) {
+          linesSummary = k.defaultLines.map(l => `• ${escapeHtml(l.description)} (€ ${l.rate})`).join('<br>');
+        }
+
+        card.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+            <h3 style="margin: 0; font-size: 17px; color: var(--ink);">${escapeHtml(k.name)}</h3>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn secondary" type="button" style="padding: 4px 8px; font-size: 11px;" onclick="openKlantModal('${k.id}')">✏️ Bewerken</button>
+              <button class="btn danger" type="button" style="padding: 4px 8px; font-size: 11px;" onclick="deleteKlant('${k.id}')">🗑️</button>
+            </div>
+          </div>
+          <div style="font-size: 13px; color: #444; line-height: 1.5; margin-bottom: 12px; white-space: pre-line;">${escapeHtml(k.formattedClientText)}</div>
+          
+          <div style="font-size: 11px; background: var(--panel); padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line); margin-bottom: 14px; color: #555;">
+            <strong>Standaard factuurregels:</strong><br>${linesSummary}
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <button class="btn primary" type="button" style="flex:1; padding: 7px 10px; font-size: 12px; text-align: center;" onclick="selectClientForInvoice('${k.id}')">📄 Nieuwe Factuur</button>
+            <button class="btn secondary" type="button" style="flex:1; padding: 7px 10px; font-size: 12px; text-align: center;" onclick="selectClientForOfferte('${k.id}')">📋 Nieuwe Offerte</button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function selectClientForInvoice(klantId) {
+      const k = klantenList.find(item => item.id === klantId);
+      if (!k) return;
+
+      switchTab('invoice');
+      state.invoiceNumber = incrementInvoiceNumber(state.invoiceNumber);
+      state.invoiceDate = today();
+      state.dueDate = today(14);
+      state.client = k.formattedClientText;
+
+      if (k.defaultLines && k.defaultLines.length > 0) {
+        state.lines = JSON.parse(JSON.stringify(k.defaultLines));
+      }
+
+      const invoiceSelect = $('#invoiceClientSelect');
+      if (invoiceSelect) invoiceSelect.value = k.id;
+
+      bindFields();
+      renderLinesEditor();
+      render();
+      validateRequiredBusinessDetails();
+      setStatus(`✨ Nieuwe factuur (${state.invoiceNumber}) klaargezet voor ${k.name}.`, 'info');
+    }
+
+    function selectClientForOfferte(klantId) {
+      const k = klantenList.find(item => item.id === klantId);
+      if (!k) return;
+
+      switchTab('offerte');
+      offerteState.offerteDate = today();
+      offerteState.validUntilDate = today(14);
+      offerteState.client = k.formattedClientText;
+
+      if (k.defaultLines && k.defaultLines.length > 0) {
+        offerteState.lines = JSON.parse(JSON.stringify(k.defaultLines));
+      }
+
+      const offerteSelect = $('#offerteClientSelect');
+      if (offerteSelect) offerteSelect.value = k.id;
+
+      bindOfferteFields();
+      renderOfferteLinesEditor();
+      renderOfferte();
+    }
+
+    function saveCurrentInvoiceClientAsPreset() {
+      if (!state.client || !state.client.trim()) {
+        alert('Vul eerst klantgegevens in.');
+        return;
+      }
+      const lines = state.client.split('\n').map(l => l.trim()).filter(Boolean);
+      const name = lines[0] || 'Nieuwe Klant';
+      openKlantModal(null, {
+        name,
+        contact: lines.find(l => l.toLowerCase().startsWith('t.a.v.')) || '',
+        address: lines[1] || '',
+        zipCity: lines[2] || '',
+        kvk: (lines.find(l => l.toUpperCase().includes('KVK:')) || '').replace(/KVK:\s*/i, ''),
+        btw: (lines.find(l => l.toUpperCase().includes('BTW:')) || '').replace(/BTW:\s*/i, ''),
+        formattedClientText: state.client,
+        defaultLines: state.lines ? JSON.parse(JSON.stringify(state.lines)) : []
+      });
+    }
+
+    function saveCurrentOfferteClientAsPreset() {
+      if (!offerteState.client || !offerteState.client.trim()) {
+        alert('Vul eerst klantgegevens in.');
+        return;
+      }
+      const lines = offerteState.client.split('\n').map(l => l.trim()).filter(Boolean);
+      const name = lines[0] || 'Nieuwe Klant';
+      openKlantModal(null, {
+        name,
+        contact: lines.find(l => l.toLowerCase().startsWith('t.a.v.')) || '',
+        address: lines[1] || '',
+        zipCity: lines[2] || '',
+        kvk: (lines.find(l => l.toUpperCase().includes('KVK:')) || '').replace(/KVK:\s*/i, ''),
+        btw: (lines.find(l => l.toUpperCase().includes('BTW:')) || '').replace(/BTW:\s*/i, ''),
+        formattedClientText: offerteState.client,
+        defaultLines: offerteState.lines ? JSON.parse(JSON.stringify(offerteState.lines)) : []
+      });
+    }
+
+    function openKlantModal(klantId = null, prefillData = null) {
+      const modal = $('#klantModal');
+      const title = $('#klantModalTitle');
+      if (!modal) return;
+
+      if (klantId) {
+        const k = klantenList.find(item => item.id === klantId);
+        if (k) {
+          title.textContent = '✏️ Klant Bewerken';
+          $('#klantIdInput').value = k.id;
+          $('#klantNameInput').value = k.name || '';
+          $('#klantContactInput').value = k.contact || '';
+          $('#klantAddressInput').value = k.address || '';
+          $('#klantZipCityInput').value = k.zipCity || '';
+          $('#klantKvkInput').value = k.kvk || '';
+          $('#klantBtwInput').value = k.btw || '';
+          const firstLine = (k.defaultLines && k.defaultLines[0]) ? k.defaultLines[0] : { description: '', quantity: 1, rate: '' };
+          $('#klantDefaultDescInput').value = firstLine.description || '';
+          $('#klantDefaultQtyInput').value = firstLine.quantity || 1;
+          $('#klantDefaultRateInput').value = firstLine.rate || '';
+        }
+      } else if (prefillData) {
+        title.textContent = '➕ Nieuwe Klant Opslaan';
+        $('#klantIdInput').value = '';
+        $('#klantNameInput').value = prefillData.name || '';
+        $('#klantContactInput').value = prefillData.contact || '';
+        $('#klantAddressInput').value = prefillData.address || '';
+        $('#klantZipCityInput').value = prefillData.zipCity || '';
+        $('#klantKvkInput').value = prefillData.kvk || '';
+        $('#klantBtwInput').value = prefillData.btw || '';
+        const firstLine = (prefillData.defaultLines && prefillData.defaultLines[0]) ? prefillData.defaultLines[0] : { description: '', quantity: 1, rate: '' };
+        $('#klantDefaultDescInput').value = firstLine.description || '';
+        $('#klantDefaultQtyInput').value = firstLine.quantity || 1;
+        $('#klantDefaultRateInput').value = firstLine.rate || '';
+      } else {
+        title.textContent = '➕ Nieuwe Klant Toevoegen';
+        $('#klantForm').reset();
+        $('#klantIdInput').value = '';
+      }
+      modal.style.display = 'flex';
+    }
+
+    function closeKlantModal() {
+      const modal = $('#klantModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function saveKlantForm(event) {
+      event.preventDefault();
+      const id = $('#klantIdInput').value;
+      const name = $('#klantNameInput').value.trim();
+      const contact = $('#klantContactInput').value.trim();
+      const address = $('#klantAddressInput').value.trim();
+      const zipCity = $('#klantZipCityInput').value.trim();
+      const kvk = $('#klantKvkInput').value.trim();
+      const btw = $('#klantBtwInput').value.trim();
+
+      const desc = $('#klantDefaultDescInput').value.trim();
+      const qty = parseMoney($('#klantDefaultQtyInput').value) || 1;
+      const rate = parseMoney($('#klantDefaultRateInput').value) || 0;
+
+      let formattedLines = [name];
+      if (contact) formattedLines.push(contact);
+      if (address) formattedLines.push(address);
+      if (zipCity) formattedLines.push(zipCity);
+      if (kvk || btw) formattedLines.push('');
+      if (kvk) formattedLines.push(`KVK: ${kvk}`);
+      if (btw) formattedLines.push(`BTW: ${btw}`);
+
+      const formattedClientText = formattedLines.join('\n');
+      const defaultLines = desc ? [{ description: desc, quantity: qty, rate: rate }] : [];
+
+      if (id) {
+        const index = klantenList.findIndex(k => k.id === id);
+        if (index !== -1) {
+          klantenList[index] = { id, name, contact, address, zipCity, kvk, btw, formattedClientText, defaultLines };
+        }
+      } else {
+        const newId = 'klant-' + Date.now();
+        klantenList.push({ id: newId, name, contact, address, zipCity, kvk, btw, formattedClientText, defaultLines });
+      }
+
+      persistKlanten();
+      closeKlantModal();
+    }
+
+    function deleteKlant(id) {
+      const k = klantenList.find(item => item.id === id);
+      if (!k) return;
+      if (!confirm(`Weet je zeker dat je klant '${k.name}' wilt verwijderen uit het klantenbestand?`)) return;
+      klantenList = klantenList.filter(item => item.id !== id);
+      persistKlanten();
+    }
+
     /* ════════════ INIT ════════════ */
     load();
     renderBonnetjes();
@@ -2874,6 +3255,71 @@ BTW: NL003482523B06</textarea>
           <button class="btn primary" type="button" onclick="openDefaultMailClient()">✉️ Open in Mail-app</button>
         </div>
       </div>
+    </div>
+  <!-- ── MODAL KLANT TOEVOEGEN / BEWERKEN ── -->
+  <div id="klantModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card" style="max-width: 600px;">
+      <div class="modal-header">
+        <h2 id="klantModalTitle">👥 Klant Beheren</h2>
+        <button class="icon-btn" type="button" onclick="closeKlantModal()" style="font-size: 20px;">✕</button>
+      </div>
+
+      <form id="klantForm" onsubmit="saveKlantForm(event)">
+        <input type="hidden" id="klantIdInput">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div>
+            <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Bedrijfsnaam *</label>
+            <input type="text" id="klantNameInput" required placeholder="Bijv. Woonwensmakelaar" style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px;">
+          </div>
+          <div>
+            <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Contactpersoon (t.a.v.)</label>
+            <input type="text" id="klantContactInput" placeholder="Bijv. t.a.v. Ronaldo Lemmens" style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div>
+            <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Adres & Huisnummer</label>
+            <input type="text" id="klantAddressInput" placeholder="Bijv. Pastoor Vonckenstraat 21" style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px;">
+          </div>
+          <div>
+            <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Postcode & Plaats</label>
+            <input type="text" id="klantZipCityInput" placeholder="Bijv. 6161 GE Geleen" style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div>
+            <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">KVK-nummer</label>
+            <input type="text" id="klantKvkInput" placeholder="Bijv. 80707823" style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px;">
+          </div>
+          <div>
+            <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">BTW-nummer (optioneel)</label>
+            <input type="text" id="klantBtwInput" placeholder="Bijv. NL003482523B06" style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px;">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 16px; border-top: 1px solid var(--line); padding-top: 12px;">
+          <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px;">Standaard Factuurregel Omschrijving</label>
+          <input type="text" id="klantDefaultDescInput" placeholder="Bijv. AI werkzaamheden" style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; margin-bottom: 8px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <label style="font-weight: 600; font-size: 12px; display: block; margin-bottom: 4px;">Standaard Aantal</label>
+              <input type="number" step="any" id="klantDefaultQtyInput" value="1" style="width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px;">
+            </div>
+            <div>
+              <label style="font-weight: 600; font-size: 12px; display: block; margin-bottom: 4px;">Standaard Tarief (€ excl. BTW)</label>
+              <input type="number" step="any" id="klantDefaultRateInput" placeholder="850" style="width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px;">
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+          <button class="btn" type="button" onclick="closeKlantModal()">Annuleren</button>
+          <button class="btn primary" type="submit">Opslaan in Klantenbestand</button>
+        </div>
+      </form>
     </div>
   </div>
 </body>

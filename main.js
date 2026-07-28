@@ -6,6 +6,106 @@ let mainWindow;
 
 // Settings file path in UserData
 const settingsPath = path.join(app.getPath('userData'), 'factuur_maker_settings.json');
+const klantenPath = path.join(app.getPath('userData'), 'factuur_maker_klanten.json');
+
+const initialKlanten = [
+  {
+    id: 'klant-woonwensmakelaar',
+    name: 'Woonwensmakelaar',
+    contact: 't.a.v. Ronaldo Lemmens',
+    address: 'Pastoor Vonckenstraat 21',
+    zipCity: '6161 GE Geleen',
+    kvk: '80707823',
+    btw: 'NL003482523B06',
+    formattedClientText: `Woonwensmakelaar\nt.a.v. Ronaldo Lemmens\nPastoor Vonckenstraat 21\n6161 GE Geleen\n\nKVK: 80707823\nBTW: NL003482523B06`,
+    defaultLines: [
+      { description: 'AI werkzaamheden - geleverd in juni 2026', quantity: 1, rate: 850 },
+      { description: 'AI werkzaamheden - geleverd in juli 2026', quantity: 1, rate: 850 }
+    ]
+  },
+  {
+    id: 'klant-de-graphics',
+    name: 'De Graphics',
+    contact: 't.a.v. Rogier Leijen',
+    address: 'Naarderweg 16',
+    zipCity: '1217 GL Hilversum',
+    kvk: '72440295',
+    btw: '',
+    formattedClientText: `De Graphics\nt.a.v. Rogier Leijen\nNaarderweg 16\n1217 GL Hilversum\n\nKVK: 72440295`,
+    defaultLines: [
+      { description: 'Motion Graphics Carbon Equity\nUitgevoerd in april/mei 2026', quantity: 1, rate: 600 }
+    ]
+  }
+];
+
+function loadKlanten() {
+  try {
+    if (fs.existsSync(klantenPath)) {
+      const data = JSON.parse(fs.readFileSync(klantenPath, 'utf8'));
+      if (Array.isArray(data) && data.length > 0) {
+        return data;
+      }
+    }
+  } catch (err) {
+    console.error('Fout bij het laden van klanten:', err);
+  }
+  // Try fallback to Google Drive folder if available
+  const settings = loadSettings();
+  if (settings.rootDriveFolder) {
+    const driveKlantenPath = path.join(settings.rootDriveFolder, 'klanten.json');
+    try {
+      if (fs.existsSync(driveKlantenPath)) {
+        const data = JSON.parse(fs.readFileSync(driveKlantenPath, 'utf8'));
+        if (Array.isArray(data) && data.length > 0) {
+          saveKlanten(data);
+          return data;
+        }
+      }
+    } catch (e) {
+      console.warn('Kon klanten niet laden uit Google Drive map:', e);
+    }
+  }
+  // Save default seed clients if no file exists yet
+  saveKlanten(initialKlanten);
+  return initialKlanten;
+}
+
+function saveKlanten(klanten) {
+  try {
+    fs.writeFileSync(klantenPath, JSON.stringify(klanten, null, 2), 'utf8');
+    const settings = loadSettings();
+    const driveFolders = [
+      settings.rootDriveFolder,
+      settings.verkoopfacturenFolder,
+      settings.invoicesFolder
+    ].filter(Boolean);
+
+    // Also add parent directory of rootDriveFolder or invoicesFolder if applicable
+    if (settings.rootDriveFolder) {
+      driveFolders.push(path.dirname(settings.rootDriveFolder));
+    }
+    if (settings.invoicesFolder) {
+      driveFolders.push(path.dirname(settings.invoicesFolder));
+    }
+
+    const uniqueFolders = [...new Set(driveFolders)];
+    uniqueFolders.forEach(folder => {
+      try {
+        if (folder && fs.existsSync(folder)) {
+          const driveKlantenPath = path.join(folder, 'klanten.json');
+          fs.writeFileSync(driveKlantenPath, JSON.stringify(klanten, null, 2), 'utf8');
+        }
+      } catch (errDrive) {
+        console.warn(`Kon klanten.json niet naar ${folder} schrijven:`, errDrive);
+      }
+    });
+
+    return { success: true };
+  } catch (err) {
+    console.error('Fout bij het opslaan van klanten:', err);
+    return { success: false, error: err.message };
+  }
+}
 
 function loadSettings() {
   try {
@@ -129,6 +229,14 @@ app.on('window-all-closed', () => {
 // IPC Handlers
 ipcMain.handle('get-folders', () => {
   return loadSettings();
+});
+
+ipcMain.handle('get-klanten', () => {
+  return loadKlanten();
+});
+
+ipcMain.handle('save-klanten', (event, klanten) => {
+  return saveKlanten(klanten);
 });
 
 ipcMain.handle('select-folder', async () => {

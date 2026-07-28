@@ -8,5 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveReceiptFile: (params) => ipcRenderer.invoke('save-receipt-file', params),
   readFolder: (folderPath) => ipcRenderer.invoke('read-folder', folderPath),
   openPath: (filePath) => ipcRenderer.invoke('open-path', filePath),
-  showInFolder: (filePath) => ipcRenderer.invoke('show-in-folder', filePath)
+  showInFolder: (filePath) => ipcRenderer.invoke('show-in-folder', filePath),
+  getKlanten: () => ipcRenderer.invoke('get-klanten'),
+  saveKlanten: (klanten) => ipcRenderer.invoke('save-klanten', klanten)
 });
