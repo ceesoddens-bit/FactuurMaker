@@ -743,6 +743,178 @@
       margin: 0 0 24px;
     }
 
+    /* ── MAPPEN EXPLORER TAB ── */
+    #pane-explorer.active {
+      display: block;
+      height: calc(100vh - 51px);
+      overflow-y: auto;
+      padding: 24px 32px;
+      -webkit-app-region: no-drag;
+    }
+
+    .explorer-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .explorer-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: #fff;
+      padding: 14px 20px;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+
+    .explorer-breadcrumbs {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .breadcrumb-item {
+      color: var(--accent);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+
+    .breadcrumb-item:hover {
+      background: rgba(184, 134, 11, 0.1);
+    }
+
+    .breadcrumb-sep {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .explorer-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .explorer-layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .explorer-sidebar {
+      background: #fff;
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .explorer-sidebar h3 {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin: 0 0 12px;
+    }
+
+    .explorer-shortcut-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .explorer-shortcut-list li {
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--ink);
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .explorer-shortcut-list li:hover {
+      background: var(--panel);
+      color: var(--accent);
+    }
+
+    .explorer-shortcut-list li.active {
+      background: rgba(184, 134, 11, 0.12);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .explorer-content {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .explorer-status-msg {
+      padding: 32px;
+      text-align: center;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .explorer-status-msg.error {
+      color: var(--danger);
+      background: #fff5f5;
+    }
+
+    .explorer-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .explorer-table th {
+      background: var(--panel);
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 750;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+    }
+
+    .explorer-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: middle;
+    }
+
+    .explorer-table tr.folder-row {
+      cursor: pointer;
+    }
+
+    .explorer-table tr.folder-row:hover,
+    .explorer-table tr.file-row:hover {
+      background: #f8fafc;
+    }
+
+    .explorer-table .name-cell {
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .explorer-table tr.folder-row .name-cell {
+      color: var(--accent);
+    }
+
     .overzicht-cards {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -900,6 +1072,9 @@
     </button>
     <button class="tab-btn" id="tab-overzicht" onclick="switchTab('overzicht')">
       <span class="tab-icon">📊</span> Overzicht
+    </button>
+    <button class="tab-btn" id="tab-explorer" onclick="switchTab('explorer')">
+      <span class="tab-icon">📂</span> Bestanden
     </button>
     <button class="tab-btn" id="tab-settings" onclick="openSettingsModal()" style="margin-left: auto;" title="Google Drive mappen instellen">
       <span class="tab-icon">📁</span> Google Drive Mappen
@@ -1360,6 +1535,53 @@ BTW: NL003482523B06</textarea>
     </div>
   </div>
 
+  <!-- ════════════════════════════════════════
+       TAB 5 — MAPPEN EXPLORER
+  ════════════════════════════════════════ -->
+  <div id="pane-explorer" class="tab-pane">
+    <div class="explorer-container">
+      <div class="explorer-toolbar">
+        <div class="explorer-breadcrumbs" id="explorer-breadcrumbs">
+          <!-- Dynamic Breadcrumbs -->
+        </div>
+        <div class="explorer-actions">
+          <button class="btn" type="button" onclick="refreshExplorerFolder()" title="Vernieuwen">🔄 Vernieuwen</button>
+          <button class="btn" type="button" onclick="openCurrentFolderInFinder()" title="Open in Finder">🖥️ Open in Finder</button>
+          <button class="btn primary" type="button" onclick="openSettingsModal()" title="Instellingen">⚙️ Mappen Instellen</button>
+        </div>
+      </div>
+
+      <div class="explorer-layout">
+        <aside class="explorer-sidebar">
+          <h3>Snelkoppelingen</h3>
+          <ul class="explorer-shortcut-list" id="explorer-shortcuts">
+            <!-- Dynamic shortcuts -->
+          </ul>
+        </aside>
+
+        <div class="explorer-content">
+          <div id="explorer-loading" class="explorer-status-msg" style="display:none;">Mapinhoud laden...</div>
+          <div id="explorer-error" class="explorer-status-msg error" style="display:none;"></div>
+          
+          <table class="explorer-table" id="explorer-table">
+            <thead>
+              <tr>
+                <th style="width: 40px; text-align: center;">Type</th>
+                <th>Naam</th>
+                <th style="width: 110px;">Grootte</th>
+                <th style="width: 160px;">Gewijzigd op</th>
+                <th style="width: 150px; text-align: right;">Acties</th>
+              </tr>
+            </thead>
+            <tbody id="explorer-tbody">
+              <!-- Dynamic Items -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     /* ════════════ TABS ════════════ */
     function switchTab(name) {
@@ -1368,6 +1590,7 @@ BTW: NL003482523B06</textarea>
       document.getElementById('pane-' + name).classList.add('active');
       document.getElementById('tab-' + name).classList.add('active');
       if (name === 'overzicht') renderOverzicht();
+      if (name === 'explorer') loadExplorerFolder();
     }
 
     /* ════════════ INVOICE (unchanged logic) ════════════ */
@@ -2204,6 +2427,214 @@ BTW: NL003482523B06</textarea>
           alert('Map ingesteld op:\n' + folderPath);
         });
       });
+    }
+
+    /* ════════════ MAPPEN EXPLORER ════════════ */
+    let currentExplorerPath = null;
+
+    async function loadExplorerFolder(folderPath = null) {
+      const loading = document.getElementById('explorer-loading');
+      const errorEl = document.getElementById('explorer-error');
+      const tbody = document.getElementById('explorer-tbody');
+      
+      if (loading) loading.style.display = 'block';
+      if (errorEl) errorEl.style.display = 'none';
+
+      if (!window.electronAPI || !window.electronAPI.readFolder) {
+        if (loading) loading.style.display = 'none';
+        if (errorEl) {
+          errorEl.innerHTML = 'Mappen verkennen is beschikbaar in de macOS Desktop App.';
+          errorEl.style.display = 'block';
+        }
+        return;
+      }
+
+      const res = await window.electronAPI.readFolder(folderPath || currentExplorerPath);
+      if (loading) loading.style.display = 'none';
+
+      if (!res.success) {
+        if (errorEl) {
+          errorEl.innerHTML = `${escapeHtml(res.error)}<br><br><button class="btn primary" type="button" onclick="openSettingsModal()">⚙️ Stel Google Drive map in</button>`;
+          errorEl.style.display = 'block';
+        }
+        if (tbody) tbody.innerHTML = '';
+        return;
+      }
+
+      currentExplorerPath = res.currentPath;
+      renderBreadcrumbs(res.currentPath, res.rootPath);
+      await renderShortcuts();
+      renderExplorerItems(res.items, res.parentPath, res.rootPath);
+    }
+
+    function renderBreadcrumbs(currentPath, rootPath) {
+      const container = document.getElementById('explorer-breadcrumbs');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const rootBtn = document.createElement('span');
+      rootBtn.className = 'breadcrumb-item';
+      rootBtn.innerHTML = '📂 Google Drive';
+      rootBtn.onclick = () => loadExplorerFolder(rootPath);
+      container.appendChild(rootBtn);
+
+      if (!currentPath || !rootPath || !currentPath.startsWith(rootPath)) {
+        if (currentPath && currentPath !== rootPath) {
+          const sep = document.createElement('span');
+          sep.className = 'breadcrumb-sep';
+          sep.textContent = ' / ';
+          container.appendChild(sep);
+
+          const item = document.createElement('span');
+          item.className = 'breadcrumb-item';
+          item.textContent = currentPath.split('/').pop() || currentPath;
+          item.onclick = () => loadExplorerFolder(currentPath);
+          container.appendChild(item);
+        }
+        return;
+      }
+
+      const rel = currentPath.slice(rootPath.length);
+      const parts = rel.split('/').filter(Boolean);
+
+      let accumulated = rootPath;
+      parts.forEach((part) => {
+        accumulated = accumulated.endsWith('/') ? accumulated + part : accumulated + '/' + part;
+        const targetPath = accumulated;
+
+        const sep = document.createElement('span');
+        sep.className = 'breadcrumb-sep';
+        sep.textContent = ' / ';
+        container.appendChild(sep);
+
+        const item = document.createElement('span');
+        item.className = 'breadcrumb-item';
+        item.textContent = part;
+        item.onclick = () => loadExplorerFolder(targetPath);
+        container.appendChild(item);
+      });
+    }
+
+    async function renderShortcuts() {
+      const container = document.getElementById('explorer-shortcuts');
+      if (!container || !window.electronAPI) return;
+      const folders = await window.electronAPI.getFolders();
+      
+      let html = '';
+      if (folders.rootDriveFolder) {
+        const isActive = currentExplorerPath === folders.rootDriveFolder;
+        html += `<li class="${isActive ? 'active' : ''}" onclick="loadExplorerFolder('${escapeJsString(folders.rootDriveFolder)}')">📂 Hoofdmap</li>`;
+      }
+      if (folders.verkoopfacturenFolder) {
+        const isActive = currentExplorerPath === folders.verkoopfacturenFolder;
+        html += `<li class="${isActive ? 'active' : ''}" onclick="loadExplorerFolder('${escapeJsString(folders.verkoopfacturenFolder)}')">📄 Verkoopfacturen</li>`;
+      }
+      if (folders.offertesFolder) {
+        const isActive = currentExplorerPath === folders.offertesFolder;
+        html += `<li class="${isActive ? 'active' : ''}" onclick="loadExplorerFolder('${escapeJsString(folders.offertesFolder)}')">📋 Offertes</li>`;
+      }
+      if (folders.inkoopZakelijkFolder) {
+        const isActive = currentExplorerPath === folders.inkoopZakelijkFolder;
+        html += `<li class="${isActive ? 'active' : ''}" onclick="loadExplorerFolder('${escapeJsString(folders.inkoopZakelijkFolder)}')">🧾 Inkoop (Zakelijk)</li>`;
+      }
+      if (folders.inkoopPriveFolder) {
+        const isActive = currentExplorerPath === folders.inkoopPriveFolder;
+        html += `<li class="${isActive ? 'active' : ''}" onclick="loadExplorerFolder('${escapeJsString(folders.inkoopPriveFolder)}')">🧾 Inkoop (Privé)</li>`;
+      }
+      if (!html) {
+        html = '<li style="color: var(--muted); font-size: 12px; font-weight: normal;">Geen mappen ingesteld</li>';
+      }
+      container.innerHTML = html;
+    }
+
+    function renderExplorerItems(items, parentPath, rootPath) {
+      const tbody = document.getElementById('explorer-tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      if (parentPath && currentExplorerPath !== rootPath && currentExplorerPath.length > rootPath?.length) {
+        const tr = document.createElement('tr');
+        tr.className = 'folder-row parent-row';
+        tr.onclick = () => loadExplorerFolder(parentPath);
+        tr.innerHTML = `
+          <td style="text-align: center;">📁</td>
+          <td colspan="4"><strong>.. (Omhoog naar bovenliggende map)</strong></td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      if (!items || items.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="5" style="text-align:center; padding: 32px; color: var(--muted);">Deze map is leeg.</td>`;
+        tbody.appendChild(tr);
+        return;
+      }
+
+      items.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.className = item.isDirectory ? 'folder-row' : 'file-row';
+
+        let icon = '📄';
+        if (item.isDirectory) icon = '📂';
+        else if (item.name.endsWith('.pdf')) icon = '🔴';
+        else if (/\.(png|jpe?g|webp|gif|svg)$/i.test(item.name)) icon = '🖼️';
+
+        const sizeStr = item.isDirectory ? '-' : formatBytes(item.size);
+        const dateStr = item.mtime ? new Date(item.mtime).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+
+        tr.innerHTML = `
+          <td style="font-size: 16px; text-align: center;">${icon}</td>
+          <td class="name-cell">${escapeHtml(item.name)}</td>
+          <td>${sizeStr}</td>
+          <td>${dateStr}</td>
+          <td style="text-align: right; white-space: nowrap;">
+            ${item.isDirectory ? `<button class="btn" type="button" style="padding: 4px 8px; font-size: 11px;" onclick="event.stopPropagation(); loadExplorerFolder('${escapeJsString(item.fullPath)}')">Open map</button>` : `<button class="btn primary" type="button" style="padding: 4px 8px; font-size: 11px;" onclick="event.stopPropagation(); openFile('${escapeJsString(item.fullPath)}')">Openen</button>`}
+            <button class="btn" type="button" style="padding: 4px 8px; font-size: 11px;" onclick="event.stopPropagation(); showInFinder('${escapeJsString(item.fullPath)}')">Finder</button>
+          </td>
+        `;
+
+        if (item.isDirectory) {
+          tr.onclick = () => loadExplorerFolder(item.fullPath);
+        } else {
+          tr.ondblclick = () => openFile(item.fullPath);
+        }
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function refreshExplorerFolder() {
+      loadExplorerFolder(currentExplorerPath);
+    }
+
+    function openCurrentFolderInFinder() {
+      if (currentExplorerPath) {
+        showInFinder(currentExplorerPath);
+      }
+    }
+
+    function openFile(filePath) {
+      if (window.electronAPI && window.electronAPI.openPath) {
+        window.electronAPI.openPath(filePath);
+      }
+    }
+
+    function showInFinder(filePath) {
+      if (window.electronAPI && window.electronAPI.showInFolder) {
+        window.electronAPI.showInFolder(filePath);
+      }
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes || bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function escapeJsString(str) {
+      return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     }
 
     /* ════════════ INIT ════════════ */

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -210,6 +210,78 @@ ipcMain.handle('save-receipt-file', async (event, { filename, base64Data, date, 
     return { success: true, path: targetPath };
   } catch (err) {
     console.error('Fout bij opslaan bonnetje:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('read-folder', async (event, folderPath) => {
+  try {
+    const settings = loadSettings();
+    let targetPath = folderPath || settings.rootDriveFolder;
+    if (!targetPath) {
+      return { success: false, error: 'Er is nog geen Google Drive hoofdmap ingesteld.' };
+    }
+    if (!fs.existsSync(targetPath)) {
+      return { success: false, error: `Map '${targetPath}' bestaat niet op dit systeem.` };
+    }
+    const items = fs.readdirSync(targetPath, { withFileTypes: true });
+    const result = items
+      .filter(item => !item.name.startsWith('.'))
+      .map(item => {
+        const fullPath = path.join(targetPath, item.name);
+        let stat = { size: 0, mtime: new Date() };
+        try {
+          stat = fs.statSync(fullPath);
+        } catch (e) {}
+        return {
+          name: item.name,
+          isDirectory: item.isDirectory(),
+          size: stat.size,
+          mtime: stat.mtime,
+          fullPath
+        };
+      });
+
+    result.sort((a, b) => {
+      if (a.isDirectory === b.isDirectory) {
+        return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+      }
+      return a.isDirectory ? -1 : 1;
+    });
+
+    return {
+      success: true,
+      currentPath: targetPath,
+      rootPath: settings.rootDriveFolder,
+      parentPath: path.dirname(targetPath) !== targetPath ? path.dirname(targetPath) : null,
+      items: result
+    };
+  } catch (err) {
+    console.error('Fout bij lezen map:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('open-path', async (event, filePath) => {
+  try {
+    if (filePath && fs.existsSync(filePath)) {
+      await shell.openPath(filePath);
+      return { success: true };
+    }
+    return { success: false, error: 'Bestand bestaat niet.' };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('show-in-folder', async (event, filePath) => {
+  try {
+    if (filePath && fs.existsSync(filePath)) {
+      shell.showItemInFolder(filePath);
+      return { success: true };
+    }
+    return { success: false, error: 'Bestand of map bestaat niet.' };
+  } catch (err) {
     return { success: false, error: err.message };
   }
 });
