@@ -38,6 +38,44 @@ const initialKlanten = [
   }
 ];
 
+function getAlgemeneBestandenFolder() {
+  const settings = loadSettings();
+  const candidates = [
+    settings.rootDriveFolder,
+    settings.verkoopfacturenFolder,
+    settings.offertesFolder,
+    settings.invoicesFolder
+  ].filter(Boolean);
+
+  for (const folder of candidates) {
+    let current = folder;
+    for (let i = 0; i < 5; i++) {
+      if (!current || current === '/' || current === path.dirname(current)) break;
+      const algemeneDir = path.join(current, 'algemeneBestanden');
+      if (fs.existsSync(algemeneDir)) {
+        return algemeneDir;
+      }
+      if (path.basename(current).toLowerCase().includes('ceesaistudio') || path.basename(current) === '2026') {
+        const target = path.join(current, 'algemeneBestanden');
+        if (!fs.existsSync(target)) {
+          try { fs.mkdirSync(target, { recursive: true }); } catch (e) {}
+        }
+        return target;
+      }
+      current = path.dirname(current);
+    }
+  }
+
+  const knownDrive = '/Users/ceesoddens/Library/CloudStorage/GoogleDrive-cees.oddens@gmail.com/Mijn Drive/CeesAIStudio/algemeneBestanden';
+  if (fs.existsSync(path.dirname(knownDrive))) {
+    if (!fs.existsSync(knownDrive)) {
+      try { fs.mkdirSync(knownDrive, { recursive: true }); } catch (e) {}
+    }
+    return knownDrive;
+  }
+  return null;
+}
+
 function loadKlanten() {
   try {
     if (fs.existsSync(klantenPath)) {
@@ -47,12 +85,12 @@ function loadKlanten() {
       }
     }
   } catch (err) {
-    console.error('Fout bij het laden van klanten:', err);
+    console.error('Fout bij het laden van klanten uit userData:', err);
   }
-  // Try fallback to Google Drive folder if available
-  const settings = loadSettings();
-  if (settings.rootDriveFolder) {
-    const driveKlantenPath = path.join(settings.rootDriveFolder, 'klanten.json');
+
+  const algemeneFolder = getAlgemeneBestandenFolder();
+  if (algemeneFolder) {
+    const driveKlantenPath = path.join(algemeneFolder, 'klanten.json');
     try {
       if (fs.existsSync(driveKlantenPath)) {
         const data = JSON.parse(fs.readFileSync(driveKlantenPath, 'utf8'));
@@ -62,10 +100,10 @@ function loadKlanten() {
         }
       }
     } catch (e) {
-      console.warn('Kon klanten niet laden uit Google Drive map:', e);
+      console.warn('Kon klanten niet laden uit Google Drive algemeneBestanden:', e);
     }
   }
-  // Save default seed clients if no file exists yet
+
   saveKlanten(initialKlanten);
   return initialKlanten;
 }
@@ -73,33 +111,14 @@ function loadKlanten() {
 function saveKlanten(klanten) {
   try {
     fs.writeFileSync(klantenPath, JSON.stringify(klanten, null, 2), 'utf8');
-    const settings = loadSettings();
-    const driveFolders = [
-      settings.rootDriveFolder,
-      settings.verkoopfacturenFolder,
-      settings.invoicesFolder
-    ].filter(Boolean);
-
-    // Also add parent directory of rootDriveFolder or invoicesFolder if applicable
-    if (settings.rootDriveFolder) {
-      driveFolders.push(path.dirname(settings.rootDriveFolder));
-    }
-    if (settings.invoicesFolder) {
-      driveFolders.push(path.dirname(settings.invoicesFolder));
-    }
-
-    const uniqueFolders = [...new Set(driveFolders)];
-    uniqueFolders.forEach(folder => {
-      try {
-        if (folder && fs.existsSync(folder)) {
-          const driveKlantenPath = path.join(folder, 'klanten.json');
-          fs.writeFileSync(driveKlantenPath, JSON.stringify(klanten, null, 2), 'utf8');
-        }
-      } catch (errDrive) {
-        console.warn(`Kon klanten.json niet naar ${folder} schrijven:`, errDrive);
+    const algemeneFolder = getAlgemeneBestandenFolder();
+    if (algemeneFolder) {
+      if (!fs.existsSync(algemeneFolder)) {
+        fs.mkdirSync(algemeneFolder, { recursive: true });
       }
-    });
-
+      const driveKlantenPath = path.join(algemeneFolder, 'klanten.json');
+      fs.writeFileSync(driveKlantenPath, JSON.stringify(klanten, null, 2), 'utf8');
+    }
     return { success: true };
   } catch (err) {
     console.error('Fout bij het opslaan van klanten:', err);
