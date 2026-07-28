@@ -44,33 +44,51 @@ function resolveTargetDirectory({ baseFolder, date, docType, subType }) {
   const settings = loadSettings();
   let targetDir = baseFolder;
 
-  // Primary fallback if specific folder not set: use rootDriveFolder
+  // Primary fallback if specific folder not set or doesn't exist: use rootDriveFolder
   if ((!targetDir || !fs.existsSync(targetDir)) && settings.rootDriveFolder) {
-    const quarter = getQuarterString(date);
-    if (docType === 'factuur') {
-      targetDir = path.join(settings.rootDriveFolder, quarter, 'verkoopfacturen');
-    } else if (docType === 'offerte') {
-      targetDir = path.join(settings.rootDriveFolder, quarter, 'offertes');
-    } else if (docType === 'inkoop') {
+    targetDir = settings.rootDriveFolder;
+  }
+
+  if (!targetDir) return '';
+
+  const lowerDir = targetDir.toLowerCase();
+  const quarter = getQuarterString(date);
+
+  const docSubfolderMap = {
+    factuur: 'verkoopfacturen',
+    offerte: 'offertes',
+    inkoop: subType === 'prive' ? 'inkoopfacturen/prive' : 'inkoopfacturen/zakelijk'
+  };
+  const expectedSubfolder = docSubfolderMap[docType || 'factuur'];
+  const mainSubfolder = expectedSubfolder.split('/')[0];
+
+  const hasQuarter = /\/q[1-4](\/|$)/i.test(targetDir);
+  const hasDocFolder = lowerDir.includes(mainSubfolder.toLowerCase());
+
+  // If the path ALREADY has both quarter and document subfolder, do not nest further
+  if (hasQuarter && hasDocFolder) {
+    return targetDir;
+  }
+
+  let result = targetDir;
+  if (settings.autoQuarter && !hasQuarter) {
+    result = path.join(result, quarter);
+  }
+
+  if (!hasDocFolder) {
+    if (docType === 'inkoop') {
       const typeSub = subType === 'prive' ? 'prive' : 'zakelijk';
-      targetDir = path.join(settings.rootDriveFolder, quarter, 'inkoopfacturen', typeSub);
+      if (!lowerDir.includes('inkoopfacturen')) {
+        result = path.join(result, 'inkoopfacturen', typeSub);
+      } else if (!lowerDir.includes(typeSub)) {
+        result = path.join(result, typeSub);
+      }
+    } else {
+      result = path.join(result, expectedSubfolder);
     }
   }
 
-  // If autoQuarter is enabled on a specific baseFolder that doesn't already end in Q1-Q4
-  if (targetDir && settings.autoQuarter && settings.rootDriveFolder && baseFolder === settings.rootDriveFolder) {
-    const quarter = getQuarterString(date);
-    if (docType === 'factuur') {
-      targetDir = path.join(settings.rootDriveFolder, quarter, 'verkoopfacturen');
-    } else if (docType === 'offerte') {
-      targetDir = path.join(settings.rootDriveFolder, quarter, 'offertes');
-    } else if (docType === 'inkoop') {
-      const typeSub = subType === 'prive' ? 'prive' : 'zakelijk';
-      targetDir = path.join(settings.rootDriveFolder, quarter, 'inkoopfacturen', typeSub);
-    }
-  }
-
-  return targetDir;
+  return result;
 }
 
 function createWindow() {
@@ -143,26 +161,33 @@ ipcMain.handle('save-pdf-file', async (event, { filename, base64Data, docType, d
       docType: docType || 'factuur'
     });
 
-    if (!folder || !fs.existsSync(folder)) {
-      // Create folder recursively if inside configured root drive
-      if (folder) {
-        fs.mkdirSync(folder, { recursive: true });
-      } else {
-        const dialogResult = await dialog.showOpenDialog(mainWindow, {
-          properties: ['openDirectory', 'createDirectory'],
-          title: `Selecteer map voor ${docType === 'offerte' ? 'offertes' : 'verkoopfacturen'}`
-        });
-        if (dialogResult.canceled || !dialogResult.filePaths.length) {
-          return { success: false, message: 'Geen map geselecteerd.' };
+    let targetPath = null;
+
+    if (folder) {
+      try {
+        if (!fs.existsSync(folder)) {
+          fs.mkdirSync(folder, { recursive: true });
         }
-        folder = dialogResult.filePaths[0];
-        if (docType === 'offerte') settings.offertesFolder = folder;
-        else settings.verkoopfacturenFolder = folder;
-        saveSettings(settings);
+        targetPath = path.join(folder, filename);
+      } catch (err) {
+        console.warn('Kon doelmap niet aanmaken, fallback naar bewaardialog:', err);
+        targetPath = null;
       }
     }
 
-    const targetPath = path.join(folder, filename);
+    if (!targetPath) {
+      const defaultDir = app.getPath('downloads');
+      const dialogResult = await dialog.showSaveDialog(mainWindow, {
+        title: `PDF Opslaan - ${docType === 'offerte' ? 'Offerte' : 'Factuur'}`,
+        defaultPath: path.join(defaultDir, filename),
+        filters: [{ name: 'PDF Bestanden', extensions: ['pdf'] }]
+      });
+      if (dialogResult.canceled || !dialogResult.filePath) {
+        return { success: false, message: 'Opslaan geannuleerd.' };
+      }
+      targetPath = dialogResult.filePath;
+    }
+
     const buffer = Buffer.from(base64Data, 'base64');
     fs.writeFileSync(targetPath, buffer);
     return { success: true, path: targetPath };
@@ -186,25 +211,33 @@ ipcMain.handle('save-receipt-file', async (event, { filename, base64Data, date, 
       subType: isPrive ? 'prive' : 'zakelijk'
     });
 
-    if (!folder || !fs.existsSync(folder)) {
-      if (folder) {
-        fs.mkdirSync(folder, { recursive: true });
-      } else {
-        const dialogResult = await dialog.showOpenDialog(mainWindow, {
-          properties: ['openDirectory', 'createDirectory'],
-          title: `Selecteer map voor inkoopfacturen (${isPrive ? 'privé' : 'zakelijk'})`
-        });
-        if (dialogResult.canceled || !dialogResult.filePaths.length) {
-          return { success: false, message: 'Geen map geselecteerd.' };
+    let targetPath = null;
+
+    if (folder) {
+      try {
+        if (!fs.existsSync(folder)) {
+          fs.mkdirSync(folder, { recursive: true });
         }
-        folder = dialogResult.filePaths[0];
-        if (isPrive) settings.inkoopPriveFolder = folder;
-        else settings.inkoopZakelijkFolder = folder;
-        saveSettings(settings);
+        targetPath = path.join(folder, filename);
+      } catch (err) {
+        console.warn('Kon doelmap niet aanmaken, fallback naar bewaardialog:', err);
+        targetPath = null;
       }
     }
 
-    const targetPath = path.join(folder, filename);
+    if (!targetPath) {
+      const defaultDir = app.getPath('downloads');
+      const dialogResult = await dialog.showSaveDialog(mainWindow, {
+        title: `Bonnetje Opslaan (${isPrive ? 'Privé' : 'Zakelijk'})`,
+        defaultPath: path.join(defaultDir, filename),
+        filters: [{ name: 'Afbeeldingen / Bestanden', extensions: ['jpg', 'jpeg', 'png', 'pdf'] }]
+      });
+      if (dialogResult.canceled || !dialogResult.filePath) {
+        return { success: false, message: 'Opslaan geannuleerd.' };
+      }
+      targetPath = dialogResult.filePath;
+    }
+
     const buffer = Buffer.from(base64Data.replace(/^data:image\/\w+;base64,/, ''), 'base64');
     fs.writeFileSync(targetPath, buffer);
     return { success: true, path: targetPath };

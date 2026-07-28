@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cees AI Studio - Bedrijfssoftware</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="html2pdf.bundle.min.js"></script>
   <style>
     :root {
       --ink: #1a202c;
@@ -1763,9 +1763,13 @@ BTW: NL003482523B06</textarea>
       }
     }
 
-    function setStatus(message, type = 'info') {
+    function setStatus(message, type = 'info', isHtml = false) {
       const status = $('#status');
-      status.textContent = message;
+      if (isHtml) {
+        status.innerHTML = message;
+      } else {
+        status.textContent = message;
+      }
       status.classList.toggle('warning', type === 'warning');
     }
 
@@ -1796,8 +1800,8 @@ BTW: NL003482523B06</textarea>
       const opt = {
         margin:       0,
         filename:     `Factuur_${state.invoiceNumber || 'Concept'}.pdf`,
-        image:        { type: 'jpeg', quality: 1 },
-        html2canvas:  { scale: 2, useCORS: true },
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, allowTaint: true, logging: false },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
@@ -1813,9 +1817,9 @@ BTW: NL003482523B06</textarea>
       const originalHeight = invoiceEl.style.height;
       const originalMinHeight = invoiceEl.style.minHeight;
       const originalOverflow = invoiceEl.style.overflow;
-      invoiceEl.style.height = '295mm';
+      invoiceEl.style.height = 'auto';
       invoiceEl.style.minHeight = '295mm';
-      invoiceEl.style.overflow = 'hidden';
+      invoiceEl.style.overflow = 'visible';
 
       if (window.electronAPI) {
         html2pdf().set(opt).from(invoiceEl).outputPdf('datauristring').then((dataUri) => {
@@ -1834,9 +1838,20 @@ BTW: NL003482523B06</textarea>
           invoiceEl.style.minHeight = originalMinHeight;
           invoiceEl.style.overflow = originalOverflow;
           if (res && res.success) {
-            setStatus(`Direct opgeslagen in Google Drive map: ${res.path}`, 'info');
+            const pathEscaped = res.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            setStatus(
+              `✅ <strong>PDF succesvol opgeslagen!</strong><br>` +
+              `<span style="font-size:0.88em; opacity:0.85;">📂 ${escapeHtml(res.path)}</span><br>` +
+              `<div style="margin-top:6px; display:flex; gap:8px; align-items:center;">` +
+              `<button class="btn secondary" style="padding:4px 10px; font-size:12px; cursor:pointer;" onclick="window.electronAPI.openPath('${pathEscaped}')">📂 Open PDF</button>` +
+              `<button class="btn secondary" style="padding:4px 10px; font-size:12px; cursor:pointer;" onclick="window.electronAPI.showInFolder('${pathEscaped}')">🔍 Toon in Finder</button>` +
+              `</div>`,
+              'info',
+              true
+            );
           } else {
-            setStatus(res && res.message ? res.message : 'Fout bij opslaan.', 'warning');
+            const errMsg = (res && (res.message || res.error)) ? (res.message || res.error) : 'Fout bij opslaan.';
+            setStatus(errMsg, 'warning');
           }
         }).catch((err) => {
           console.error(err);
@@ -1846,7 +1861,7 @@ BTW: NL003482523B06</textarea>
           invoiceEl.style.height = originalHeight;
           invoiceEl.style.minHeight = originalMinHeight;
           invoiceEl.style.overflow = originalOverflow;
-          setStatus('Fout bij het genereren van de PDF.', 'warning');
+          setStatus('Fout bij het genereren van de PDF: ' + (err.message || err), 'warning');
         });
       } else {
         html2pdf().set(opt).from(invoiceEl).save().then(() => {
@@ -1865,7 +1880,7 @@ BTW: NL003482523B06</textarea>
           invoiceEl.style.height = originalHeight;
           invoiceEl.style.minHeight = originalMinHeight;
           invoiceEl.style.overflow = originalOverflow;
-          setStatus('Fout bij het genereren van de PDF.', 'warning');
+          setStatus('Fout bij het genereren van de PDF: ' + (err.message || err), 'warning');
         });
       }
     }
@@ -2031,10 +2046,14 @@ BTW: NL003482523B06</textarea>
       }
     }
 
-    function setOfferteStatus(message, type = 'info') {
+    function setOfferteStatus(message, type = 'info', isHtml = false) {
       const status = $('#offerteStatus');
       if (!status) return;
-      status.textContent = message;
+      if (isHtml) {
+        status.innerHTML = message;
+      } else {
+        status.textContent = message;
+      }
       status.classList.toggle('warning', type === 'warning');
     }
 
@@ -2045,8 +2064,8 @@ BTW: NL003482523B06</textarea>
       const opt = {
         margin:       0,
         filename:     `Offerte_${offerteState.offerteNumber || 'Concept'}.pdf`,
-        image:        { type: 'jpeg', quality: 1 },
-        html2canvas:  { scale: 2, useCORS: true },
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, allowTaint: true, logging: false },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
@@ -2062,9 +2081,9 @@ BTW: NL003482523B06</textarea>
       const originalHeight = docEl.style.height;
       const originalMinHeight = docEl.style.minHeight;
       const originalOverflow = docEl.style.overflow;
-      docEl.style.height = '295mm';
+      docEl.style.height = 'auto';
       docEl.style.minHeight = '295mm';
-      docEl.style.overflow = 'hidden';
+      docEl.style.overflow = 'visible';
 
       if (window.electronAPI) {
         html2pdf().set(opt).from(docEl).outputPdf('datauristring').then((dataUri) => {
@@ -2083,9 +2102,20 @@ BTW: NL003482523B06</textarea>
           docEl.style.minHeight = originalMinHeight;
           docEl.style.overflow = originalOverflow;
           if (res && res.success) {
-            setOfferteStatus(`Direct opgeslagen in Google Drive map: ${res.path}`, 'info');
+            const pathEscaped = res.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            setOfferteStatus(
+              `✅ <strong>Offerte PDF succesvol opgeslagen!</strong><br>` +
+              `<span style="font-size:0.88em; opacity:0.85;">📂 ${escapeHtml(res.path)}</span><br>` +
+              `<div style="margin-top:6px; display:flex; gap:8px; align-items:center;">` +
+              `<button class="btn secondary" style="padding:4px 10px; font-size:12px; cursor:pointer;" onclick="window.electronAPI.openPath('${pathEscaped}')">📂 Open PDF</button>` +
+              `<button class="btn secondary" style="padding:4px 10px; font-size:12px; cursor:pointer;" onclick="window.electronAPI.showInFolder('${pathEscaped}')">🔍 Toon in Finder</button>` +
+              `</div>`,
+              'info',
+              true
+            );
           } else {
-            setOfferteStatus(res && res.message ? res.message : 'Fout bij opslaan.', 'warning');
+            const errMsg = (res && (res.message || res.error)) ? (res.message || res.error) : 'Fout bij opslaan.';
+            setOfferteStatus(errMsg, 'warning');
           }
         }).catch((err) => {
           console.error(err);
@@ -2095,7 +2125,7 @@ BTW: NL003482523B06</textarea>
           docEl.style.height = originalHeight;
           docEl.style.minHeight = originalMinHeight;
           docEl.style.overflow = originalOverflow;
-          setOfferteStatus('Fout bij het genereren van de PDF.', 'warning');
+          setOfferteStatus('Fout bij het genereren van de PDF: ' + (err.message || err), 'warning');
         });
       } else {
         html2pdf().set(opt).from(docEl).save().then(() => {
