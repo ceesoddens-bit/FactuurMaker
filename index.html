@@ -1590,28 +1590,53 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
   ════════════════════════════════════════ -->
   <div id="pane-overzicht" class="tab-pane">
     <div class="overzicht-inner">
-      <h2>📊 Financieel Overzicht</h2>
+      <h2>📊 Financieel Overzicht (<span id="ov-quarter-title">Q3</span>)</h2>
 
-      <div class="overzicht-cards">
+      <div class="overzicht-cards" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
         <div class="ov-card">
           <div class="ov-card-label">Factuuromzet (excl. BTW)</div>
-          <div class="ov-card-value" id="ov-omzet">€ 0,00</div>
-          <div class="ov-card-sub" id="ov-omzet-sub">Huidig open factuur</div>
+          <div class="ov-card-value" id="ov-omzet" style="color: var(--accent);">€ 0,00</div>
+          <div class="ov-card-sub" id="ov-omzet-sub">0 verkoopfacturen</div>
         </div>
         <div class="ov-card">
-          <div class="ov-card-label">Kosten bonnetjes (incl. BTW)</div>
+          <div class="ov-card-label">Kosten inkoop (excl. BTW)</div>
           <div class="ov-card-value" id="ov-kosten">€ 0,00</div>
-          <div class="ov-card-sub" id="ov-kosten-sub">0 bonnetjes</div>
+          <div class="ov-card-sub" id="ov-kosten-sub">0 inkoopbonnetjes</div>
         </div>
         <div class="ov-card">
-          <div class="ov-card-label">Terug te vorderen BTW</div>
-          <div class="ov-card-value" id="ov-btw">€ 0,00</div>
-          <div class="ov-card-sub">Op basis van bonnetjes</div>
+          <div class="ov-card-label">Netto Resultaat (Winst)</div>
+          <div class="ov-card-value" id="ov-winst" style="color: #10b981;">€ 0,00</div>
+          <div class="ov-card-sub" id="ov-winst-sub">Omzet min kosten (excl. BTW)</div>
+        </div>
+        <div class="ov-card">
+          <div class="ov-card-label">BTW Saldo (Aangifte)</div>
+          <div class="ov-card-value" id="ov-btw-saldo">€ 0,00</div>
+          <div class="ov-card-sub" id="ov-btw-sub">Af te dragen BTW</div>
         </div>
       </div>
 
+      <div class="ov-table" style="margin-bottom: 24px;">
+        <h3>📄 Gegenereerde Verkoopfacturen (<span class="ov-q-label">Q3</span>)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Factuur nr.</th>
+              <th>Datum</th>
+              <th>Klant</th>
+              <th class="num">Subtotaal (excl.)</th>
+              <th class="num">BTW (21%)</th>
+              <th class="num">Totaal (incl.)</th>
+              <th style="text-align: right;">Actie</th>
+            </tr>
+          </thead>
+          <tbody id="ov-facturen-table">
+            <tr><td colspan="7" style="text-align:center; color: var(--muted); padding: 24px;">Nog geen verkoopfacturen in dit kwartaal.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
       <div class="ov-table">
-        <h3>Kosten per categorie</h3>
+        <h3>🧾 Inkoopkosten per Categorie (<span class="ov-q-label">Q3</span>)</h3>
         <table>
           <thead>
             <tr>
@@ -1951,11 +1976,32 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
 
       if (window.electronAPI) {
         html2pdf().set(opt).from(invoiceEl).outputPdf('arraybuffer').then((pdfArrayBuffer) => {
+          let subtotal = 0;
+          state.lines.forEach(l => subtotal += parseMoney(l.quantity) * parseMoney(l.rate));
+          let vatTotal = subtotal * 0.21;
+          if (window.electronAPI.saveVerkoopfactuur) {
+            window.electronAPI.saveVerkoopfactuur({
+              id: `factuur-${state.invoiceNumber}`,
+              invoiceNumber: state.invoiceNumber,
+              clientName: state.client.split('\n')[0],
+              invoiceDate: state.invoiceDate,
+              dueDate: state.dueDate,
+              subtotal: subtotal,
+              vatTotal: vatTotal,
+              total: subtotal + vatTotal,
+              filename: opt.filename,
+              docType: 'factuur',
+              quarter: activeQuarter,
+              lines: state.lines
+            });
+          }
+
           return window.electronAPI.savePdfFile({
             filename: opt.filename,
             pdfArrayBuffer: pdfArrayBuffer,
             docType: 'factuur',
-            date: state.invoiceDate
+            date: state.invoiceDate,
+            quarter: activeQuarter
           });
         }).then((res) => {
           btn.innerHTML = originalText;
@@ -2648,41 +2694,105 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
     }
 
     /* ════════════ OVERZICHT ════════════ */
-    function renderOverzicht() {
-      // Factuuromzet van open factuur
-      let subtotal = 0;
-      state.lines.forEach(line => {
-        subtotal += parseMoney(line.quantity) * parseMoney(line.rate);
+    async function renderOverzicht() {
+      // Set quarter labels in title and headers
+      const titleEl = document.getElementById('ov-quarter-title');
+      if (titleEl) titleEl.textContent = activeQuarter;
+      document.querySelectorAll('.ov-q-label').forEach(el => el.textContent = activeQuarter);
+
+      let verkoopfacturen = [];
+      if (window.electronAPI && window.electronAPI.getVerkoopfacturen) {
+        verkoopfacturen = await window.electronAPI.getVerkoopfacturen();
+      }
+
+      // Filter verkoopfacturen for activeQuarter
+      const quarterFacturen = (verkoopfacturen || []).filter(f => {
+        if (f.quarter) return f.quarter === activeQuarter;
+        if (f.invoiceDate) {
+          const d = new Date(f.invoiceDate + 'T12:00:00');
+          if (!isNaN(d.getTime())) {
+            return ('Q' + (Math.floor(d.getMonth() / 3) + 1)) === activeQuarter;
+          }
+        }
+        return activeQuarter === getCurrentQuarter();
       });
-      document.getElementById('ov-omzet').textContent = euro.format(subtotal);
-      document.getElementById('ov-omzet-sub').textContent = `Factuur ${state.invoiceNumber} — ${state.client.split('\n')[0]}`;
+
+      // Factuuromzet stats
+      const totalOmzetExcl = quarterFacturen.reduce((sum, f) => sum + (f.subtotal || 0), 0);
+      const totalSalesVat = quarterFacturen.reduce((sum, f) => sum + (f.vatTotal || 0), 0);
+
+      document.getElementById('ov-omzet').textContent = euro.format(totalOmzetExcl);
+      document.getElementById('ov-omzet-sub').textContent = `${quarterFacturen.length} verkoopfactuur${quarterFacturen.length !== 1 ? 'en' : ''} (${activeQuarter})`;
 
       // Bonnetjes kosten
-      const totalKosten = bonnetjes.reduce((s, b) => s + b.bedrag, 0);
-      const totalBtw = bonnetjes.reduce((s, b) => s + b.btwBedrag, 0);
-      document.getElementById('ov-kosten').textContent = euro.format(totalKosten);
-      document.getElementById('ov-kosten-sub').textContent = `${bonnetjes.length} bonnetje${bonnetjes.length !== 1 ? 's' : ''}`;
-      document.getElementById('ov-btw').textContent = euro.format(totalBtw);
+      const totalKostenIncl = bonnetjes.reduce((s, b) => s + (b.bedrag || 0), 0);
+      const totalKostenBtw = bonnetjes.reduce((s, b) => s + (b.btwBedrag || 0), 0);
+      const totalKostenExcl = totalKostenIncl - totalKostenBtw;
 
-      // Per categorie
+      document.getElementById('ov-kosten').textContent = euro.format(totalKostenExcl);
+      document.getElementById('ov-kosten-sub').textContent = `${bonnetjes.length} inkoopbonnetjes (${euro.format(totalKostenIncl)} incl. BTW)`;
+
+      // Netto resultaat & BTW saldo
+      const nettoWinst = totalOmzetExcl - totalKostenExcl;
+      const winstEl = document.getElementById('ov-winst');
+      if (winstEl) {
+        winstEl.textContent = euro.format(nettoWinst);
+        winstEl.style.color = nettoWinst >= 0 ? '#10b981' : '#ef4444';
+      }
+
+      const btwSaldo = totalSalesVat - totalKostenBtw;
+      const btwSaldoEl = document.getElementById('ov-btw-saldo');
+      const btwSubEl = document.getElementById('ov-btw-sub');
+      if (btwSaldoEl) {
+        btwSaldoEl.textContent = euro.format(Math.abs(btwSaldo));
+        if (btwSubEl) {
+          btwSubEl.textContent = btwSaldo >= 0 
+            ? `Af te dragen (${euro.format(totalSalesVat)} - ${euro.format(totalKostenBtw)})`
+            : `Terug te vragen (${euro.format(totalKostenBtw)} - ${euro.format(totalSalesVat)})`;
+        }
+      }
+
+      // Render Verkoopfacturen Table
+      const facturenTbody = document.getElementById('ov-facturen-table');
+      if (facturenTbody) {
+        if (quarterFacturen.length === 0) {
+          facturenTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: var(--muted); padding: 24px;">Nog geen verkoopfacturen in ${activeQuarter}.</td></tr>`;
+        } else {
+          facturenTbody.innerHTML = quarterFacturen.map(f => `
+            <tr>
+              <td><strong>${escapeHtml(f.invoiceNumber)}</strong></td>
+              <td>${formatDate(f.invoiceDate)}</td>
+              <td>${escapeHtml(f.clientName || f.client || 'Klant')}</td>
+              <td class="num">${euro.format(f.subtotal || 0)}</td>
+              <td class="num">${euro.format(f.vatTotal || 0)}</td>
+              <td class="num"><strong>${euro.format(f.total || 0)}</strong></td>
+              <td style="text-align: right;">
+                <button class="btn" type="button" style="padding: 3px 8px; font-size: 11px;" onclick="openFactuurPdf('${escapeJsString(f.filename)}', '${escapeJsString(f.quarter || activeQuarter)}')">📄 Open PDF</button>
+              </td>
+            </tr>
+          `).join('');
+        }
+      }
+
+      // Render Costs per Category Table
       const cats = {};
       bonnetjes.forEach(b => {
         if (!cats[b.categorie]) cats[b.categorie] = { count: 0, total: 0, btw: 0 };
         cats[b.categorie].count++;
-        cats[b.categorie].total += b.bedrag;
-        cats[b.categorie].btw += b.btwBedrag;
+        cats[b.categorie].total += (b.bedrag || 0);
+        cats[b.categorie].btw += (b.btwBedrag || 0);
       });
 
-      const tbody = document.getElementById('ov-cat-table');
+      const catTbody = document.getElementById('ov-cat-table');
       const entries = Object.entries(cats);
       if (entries.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--muted); padding: 24px;">Nog geen bonnetjes ingevoerd.</td></tr>';
+        catTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--muted); padding: 24px;">Nog geen inkoopbonnetjes in ${activeQuarter}.</td></tr>`;
         return;
       }
 
       const catIcons = { 'Kantoor': '📎', 'Reizen': '🚗', 'Eten & Drinken': '🍽️', 'Software': '💻', 'Hardware': '🖥️', 'Overig': '📦' };
 
-      tbody.innerHTML = entries.sort((a, b) => b[1].total - a[1].total).map(([cat, data]) => `
+      catTbody.innerHTML = entries.sort((a, b) => b[1].total - a[1].total).map(([cat, data]) => `
         <tr>
           <td>${catIcons[cat] || '📦'} ${cat}</td>
           <td class="num">${data.count}</td>
@@ -2691,6 +2801,15 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
           <td class="num">${euro.format(data.total - data.btw)}</td>
         </tr>
       `).join('');
+    }
+
+    function openFactuurPdf(filename, quarter) {
+      if (!window.electronAPI) return;
+      window.electronAPI.getFolders().then(folders => {
+        const root = folders.rootDriveFolder || '/Users/ceesoddens/Library/CloudStorage/GoogleDrive-cees.oddens@gmail.com/Mijn Drive/CeesAIStudio';
+        const targetPath = `${root}/2026/${quarter || activeQuarter}/verkoopfacturen/${filename}`;
+        window.electronAPI.openPath(targetPath);
+      });
     }
 
     /* ════════════ GOOGLE DRIVE / ELECTRON DESKTOP MAPPEN ════════════ */

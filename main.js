@@ -7,6 +7,7 @@ let mainWindow;
 // Settings file path in UserData
 const settingsPath = path.join(app.getPath('userData'), 'factuur_maker_settings.json');
 const klantenPath = path.join(app.getPath('userData'), 'factuur_maker_klanten.json');
+const verkoopfacturenPath = path.join(app.getPath('userData'), 'factuur_maker_verkoopfacturen.json');
 
 const initialKlanten = [
   {
@@ -122,6 +123,92 @@ function saveKlanten(klanten) {
     return { success: true };
   } catch (err) {
     console.error('Fout bij het opslaan van klanten:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+const defaultSeedFacturen = [
+  {
+    id: 'factuur-00001',
+    invoiceNumber: '00001',
+    clientName: 'Woonwensmakelaar',
+    clientContact: 't.a.v. Ronaldo Lemmens',
+    invoiceDate: '2026-07-17',
+    dueDate: '2026-07-31',
+    subtotal: 1700.00,
+    vatTotal: 357.00,
+    total: 2057.00,
+    filename: 'Factuur_00001.pdf',
+    docType: 'factuur',
+    quarter: 'Q3',
+    lines: [
+      { description: 'AI werkzaamheden - geleverd in juni 2026', quantity: 1, rate: 850 },
+      { description: 'AI werkzaamheden - geleverd in juli 2026', quantity: 1, rate: 850 }
+    ]
+  },
+  {
+    id: 'factuur-00002',
+    invoiceNumber: '00002',
+    clientName: 'De Graphics',
+    clientContact: 't.a.v. Rogier Leijen',
+    invoiceDate: '2026-07-28',
+    dueDate: '2026-08-11',
+    subtotal: 600.00,
+    vatTotal: 126.00,
+    total: 726.00,
+    filename: 'Factuur_00002.pdf',
+    docType: 'factuur',
+    quarter: 'Q3',
+    lines: [
+      { description: 'Motion Graphics Carbon Equity\nUitgevoerd in april/mei 2026', quantity: 1, rate: 600 }
+    ]
+  }
+];
+
+function loadVerkoopfacturen() {
+  try {
+    if (fs.existsSync(verkoopfacturenPath)) {
+      const data = JSON.parse(fs.readFileSync(verkoopfacturenPath, 'utf8'));
+      if (Array.isArray(data) && data.length > 0) {
+        return data;
+      }
+    }
+  } catch (err) {
+    console.error('Fout bij het laden van verkoopfacturen:', err);
+  }
+
+  const algemeneFolder = getAlgemeneBestandenFolder();
+  if (algemeneFolder) {
+    const driveLogPath = path.join(algemeneFolder, 'facturen_log.json');
+    try {
+      if (fs.existsSync(driveLogPath)) {
+        const data = JSON.parse(fs.readFileSync(driveLogPath, 'utf8'));
+        if (Array.isArray(data) && data.length > 0) {
+          saveVerkoopfacturen(data);
+          return data;
+        }
+      }
+    } catch (e) {}
+  }
+
+  saveVerkoopfacturen(defaultSeedFacturen);
+  return defaultSeedFacturen;
+}
+
+function saveVerkoopfacturen(facturen) {
+  try {
+    fs.writeFileSync(verkoopfacturenPath, JSON.stringify(facturen, null, 2), 'utf8');
+    const algemeneFolder = getAlgemeneBestandenFolder();
+    if (algemeneFolder) {
+      if (!fs.existsSync(algemeneFolder)) {
+        fs.mkdirSync(algemeneFolder, { recursive: true });
+      }
+      const driveLogPath = path.join(algemeneFolder, 'facturen_log.json');
+      fs.writeFileSync(driveLogPath, JSON.stringify(facturen, null, 2), 'utf8');
+    }
+    return { success: true };
+  } catch (err) {
+    console.error('Fout bij het opslaan van verkoopfacturen log:', err);
     return { success: false, error: err.message };
   }
 }
@@ -262,6 +349,21 @@ ipcMain.handle('get-klanten', () => {
 
 ipcMain.handle('save-klanten', (event, klanten) => {
   return saveKlanten(klanten);
+});
+
+ipcMain.handle('get-verkoopfacturen', () => {
+  return loadVerkoopfacturen();
+});
+
+ipcMain.handle('save-verkoopfactuur', (event, factuurData) => {
+  const current = loadVerkoopfacturen();
+  const existingIdx = current.findIndex(f => f.invoiceNumber === factuurData.invoiceNumber);
+  if (existingIdx >= 0) {
+    current[existingIdx] = { ...current[existingIdx], ...factuurData };
+  } else {
+    current.unshift(factuurData);
+  }
+  return saveVerkoopfacturen(current);
 });
 
 ipcMain.handle('select-folder', async () => {

@@ -11,5 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showInFolder: (filePath) => ipcRenderer.invoke('show-in-folder', filePath),
   scanBonnetjes: (params) => ipcRenderer.invoke('scan-bonnetjes', params),
   getKlanten: () => ipcRenderer.invoke('get-klanten'),
-  saveKlanten: (klanten) => ipcRenderer.invoke('save-klanten', klanten)
+  saveKlanten: (klanten) => ipcRenderer.invoke('save-klanten', klanten),
+  getVerkoopfacturen: () => ipcRenderer.invoke('get-verkoopfacturen'),
+  saveVerkoopfactuur: (data) => ipcRenderer.invoke('save-verkoopfactuur', data)
 });
