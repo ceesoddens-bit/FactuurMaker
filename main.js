@@ -159,7 +159,7 @@ function getQuarterString(dateStr) {
   return 'Q' + (Math.floor(month / 3) + 1);
 }
 
-function resolveTargetDirectory({ baseFolder, date, docType, subType }) {
+function resolveTargetDirectory({ baseFolder, date, docType, subType, quarter: customQuarter }) {
   const settings = loadSettings();
   let targetDir = baseFolder;
 
@@ -171,7 +171,7 @@ function resolveTargetDirectory({ baseFolder, date, docType, subType }) {
   if (!targetDir) return '';
 
   const lowerDir = targetDir.toLowerCase();
-  const quarter = getQuarterString(date);
+  const quarter = customQuarter || getQuarterString(date);
 
   const docSubfolderMap = {
     factuur: 'verkoopfacturen',
@@ -191,7 +191,13 @@ function resolveTargetDirectory({ baseFolder, date, docType, subType }) {
 
   let result = targetDir;
   if (settings.autoQuarter && !hasQuarter) {
-    result = path.join(result, quarter);
+    // Check if 2026 subfolder exists under root
+    const yearDir = path.join(result, '2026');
+    if (fs.existsSync(yearDir)) {
+      result = path.join(yearDir, quarter);
+    } else {
+      result = path.join(result, quarter);
+    }
   }
 
   if (!hasDocFolder) {
@@ -460,5 +466,165 @@ ipcMain.handle('show-in-folder', async (event, filePath) => {
     return { success: false, error: `Bestand niet gevonden op: ${filePath}` };
   } catch (err) {
     return { success: false, error: err.message };
+  }
+});
+
+function parseReceiptFilename(filename, fileStats) {
+  const ext = path.extname(filename);
+  let nameWithoutExt = path.basename(filename, ext);
+
+  // 1. Date extraction (YYYY-MM-DD or DD-MM-YYYY)
+  let datum = '';
+  const dateMatch = nameWithoutExt.match(/(\d{4}-\d{2}-\d{2})/) || nameWithoutExt.match(/(\d{2}-\d{2}-\d{4})/);
+  if (dateMatch) {
+    let rawDate = dateMatch[1];
+    if (rawDate.match(/^\d{2}-\d{2}-\d{4}$/)) {
+      const parts = rawDate.split('-');
+      datum = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    } else {
+      datum = rawDate;
+    }
+  } else if (fileStats && fileStats.mtime) {
+    datum = new Date(fileStats.mtime).toISOString().split('T')[0];
+  } else {
+    datum = new Date().toISOString().split('T')[0];
+  }
+
+  // 2. Amount extraction (e.g. 29,04 or 29.04 or _29,04 or €29,04)
+  let bedrag = 0;
+  const amountMatch = nameWithoutExt.match(/(?:_|€|\b)(\d+[\.,]\d{2})\b/);
+  if (amountMatch) {
+    const rawNum = amountMatch[1].replace(',', '.');
+    bedrag = parseFloat(rawNum) || 0;
+  }
+
+  // 3. Clean description
+  let omschrijving = nameWithoutExt;
+  if (dateMatch) {
+    omschrijving = omschrijving.replace(dateMatch[0], '');
+  }
+  if (amountMatch) {
+    omschrijving = omschrijving.replace(amountMatch[0], '');
+  }
+  omschrijving = omschrijving
+    .replace(/^[\s_#-]+|[\s_#-]+$/g, '')
+    .replace(/[\s_]+/g, ' ');
+
+  if (!omschrijving) {
+    omschrijving = nameWithoutExt;
+  }
+
+  // 4. Category auto-detection
+  let categorie = 'Software';
+  const lower = nameWithoutExt.toLowerCase();
+  if (/(tank|benzine|ns|trein|ov|uber|parking|parkeren|shell|tinq|esso|tango)/i.test(lower)) {
+    categorie = 'Reizen';
+  } else if (/(lunch|diner|koffie|restaurant|horeca|brasserie|eetcafé|supermarkt|albert|jumbo)/i.test(lower)) {
+    categorie = 'Eten & Drinken';
+  } else if (/(kantoor|papier|inkt|postnl|staples|action|zeeman|hema)/i.test(lower)) {
+    categorie = 'Kantoor';
+  } else if (/(monitor|laptop|kabel|usb|muis|toetsenbord|apple|bol|coolblue|hardware)/i.test(lower)) {
+    categorie = 'Hardware';
+  } else if (/(paddle|n8n|github|openai|anthropic|adobe|google|aws|cloudflare|hosting|domein|software|app|factuur)/i.test(lower)) {
+    categorie = 'Software';
+  } else {
+    categorie = 'Overig';
+  }
+
+  return {
+    omschrijving,
+    bedrag,
+    datum,
+    categorie
+  };
+}
+
+ipcMain.handle('scan-bonnetjes', async (event, { quarter, year }) => {
+  try {
+    const settings = loadSettings();
+    const targetQuarter = quarter || 'Q3';
+    const targetYear = year || '2026';
+
+    let rootFolder = settings.rootDriveFolder;
+    if (!rootFolder) {
+      const candidate = getAlgemeneBestandenFolder();
+      if (candidate) {
+        rootFolder = path.dirname(candidate);
+      }
+    }
+
+    if (!rootFolder || !fs.existsSync(rootFolder)) {
+      return { success: false, items: [], error: 'Hoofdmap niet gevonden.' };
+    }
+
+    // Determine candidate quarter folders
+    const potentialPaths = [
+      path.join(rootFolder, targetYear, targetQuarter, 'inkoopfacturen'),
+      path.join(rootFolder, targetQuarter, 'inkoopfacturen'),
+      path.join(rootFolder, 'inkoopfacturen')
+    ];
+
+    let inkoopDir = potentialPaths.find(p => fs.existsSync(p));
+    if (!inkoopDir) {
+      inkoopDir = path.join(rootFolder, targetYear, targetQuarter, 'inkoopfacturen');
+      try {
+        fs.mkdirSync(path.join(inkoopDir, 'zakelijk'), { recursive: true });
+        fs.mkdirSync(path.join(inkoopDir, 'prive'), { recursive: true });
+      } catch (e) {}
+    }
+
+    const subTypes = ['zakelijk', 'prive'];
+    const scannedItems = [];
+
+    for (const subType of subTypes) {
+      const dirPath = path.join(inkoopDir, subType);
+      if (!fs.existsSync(dirPath)) continue;
+
+      const files = fs.readdirSync(dirPath, { withFileTypes: true });
+      for (const file of files) {
+        if (file.isDirectory() || file.name.startsWith('.')) continue;
+        const ext = path.extname(file.name).toLowerCase();
+        if (!['.pdf', '.png', '.jpg', '.jpeg', '.webp'].includes(ext)) continue;
+
+        const fullPath = path.join(dirPath, file.name);
+        let stat = { size: 0, mtime: new Date() };
+        try { stat = fs.statSync(fullPath); } catch (e) {}
+
+        const parsed = parseReceiptFilename(file.name, stat);
+
+        let isPdf = ext === '.pdf';
+        let foto = null;
+        if (!isPdf) {
+          try {
+            const buf = fs.readFileSync(fullPath);
+            const mime = ext === '.png' ? 'image/png' : 'image/jpeg';
+            foto = `data:${mime};base64,${buf.toString('base64')}`;
+          } catch (e) {}
+        }
+
+        scannedItems.push({
+          id: `scan-${subType}-${file.name}`,
+          filename: file.name,
+          fullPath,
+          subType,
+          isDiskScan: true,
+          isPdf,
+          foto,
+          omschrijving: parsed.omschrijving,
+          bedrag: parsed.bedrag,
+          btw: 21,
+          btwBedrag: parsed.bedrag / 1.21 * 0.21,
+          datum: parsed.datum,
+          categorie: parsed.categorie,
+          size: stat.size,
+          mtime: stat.mtime
+        });
+      }
+    }
+
+    return { success: true, items: scannedItems, inkoopDir };
+  } catch (err) {
+    console.error('Fout bij scannen bonnetjes:', err);
+    return { success: false, items: [], error: err.message };
   }
 });

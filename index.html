@@ -106,6 +106,71 @@
       font-size: 16px;
     }
 
+    /* ── KWARTAAL KIEZER ── */
+    .quarter-selector-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+      margin-right: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 4px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      -webkit-app-region: no-drag;
+    }
+    .quarter-label {
+      color: #e2e8f0;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-right: 4px;
+    }
+    .quarter-pills {
+      display: flex;
+      gap: 4px;
+    }
+    .q-pill {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: rgba(255, 255, 255, 0.75);
+      padding: 4px 11px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      -webkit-app-region: no-drag;
+    }
+    .q-pill:hover {
+      background: rgba(255, 255, 255, 0.22);
+      color: #ffffff;
+    }
+    .q-pill.active {
+      background: #d97706;
+      color: #ffffff;
+      border-color: #f59e0b;
+      font-weight: 800;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
+    }
+    .source-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: #e2e8f0;
+      color: #334155;
+    }
+    .source-badge.disk {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+    }
+
     /* ── PANE WRAPPERS ── */
     .tab-pane { display: none; }
     .tab-pane.active { display: contents; }
@@ -1088,7 +1153,18 @@
     <button class="tab-btn" id="tab-explorer" onclick="switchTab('explorer')">
       <span class="tab-icon">📂</span> Bestanden
     </button>
-    <button class="tab-btn" id="tab-settings" onclick="openSettingsModal()" style="margin-left: auto;" title="Google Drive mappen instellen">
+
+    <div class="quarter-selector-container" title="Selecteer het actieve boekhoudkwartaal">
+      <span class="quarter-label">📅 Kwartaal:</span>
+      <div class="quarter-pills">
+        <button type="button" class="q-pill" data-q="Q1" onclick="setQuarter('Q1')">Q1</button>
+        <button type="button" class="q-pill" data-q="Q2" onclick="setQuarter('Q2')">Q2</button>
+        <button type="button" class="q-pill active" data-q="Q3" onclick="setQuarter('Q3')">Q3</button>
+        <button type="button" class="q-pill" data-q="Q4" onclick="setQuarter('Q4')">Q4</button>
+      </div>
+    </div>
+
+    <button class="tab-btn" id="tab-settings" onclick="openSettingsModal()" title="Google Drive mappen instellen">
       <span class="tab-icon">📁</span> Google Drive Mappen
     </button>
   </nav>
@@ -1485,8 +1561,9 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
         </div>
 
         <h2>
-          <span>Bonnetjes</span>
+          <span>Bonnetjes (<span id="activeQuarterBadge" style="color: var(--accent);">Q3</span>)</span>
           <div style="display:flex; gap:8px;">
+            <button class="btn" onclick="refreshBonnetjesForQuarter()" style="font-size:13px; padding: 6px 12px;" title="Mappen op schijf opnieuw scannen">🔄 Vernieuwen</button>
             <button class="btn" onclick="exportBonnetjesCsv()" style="font-size:13px; padding: 6px 12px;">⬇️ Export CSV</button>
           </div>
         </h2>
@@ -1630,6 +1707,7 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.getElementById('pane-' + name).classList.add('active');
       document.getElementById('tab-' + name).classList.add('active');
+      if (name === 'bonnetjes') refreshBonnetjesForQuarter();
       if (name === 'overzicht') renderOverzicht();
       if (name === 'explorer') loadExplorerFolder();
       if (name === 'klanten') renderKlantenList();
@@ -2275,12 +2353,82 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
       reader.readAsDataURL(file);
     });
 
-    /* ════════════ BONNETJES ════════════ */
+    /* ════════════ BONNETJES & KWARTAAL KIEZER ════════════ */
     const bonnetjesKey = 'cees-ai-studio-bonnetjes-v1';
-    let bonnetjes = JSON.parse(localStorage.getItem(bonnetjesKey) || '[]');
+    const overridesKey = 'cees-ai-studio-bonnetjes-overrides-v1';
+    let localBonnetjes = JSON.parse(localStorage.getItem(bonnetjesKey) || '[]');
+    let receiptOverrides = JSON.parse(localStorage.getItem(overridesKey) || '{}');
+    let scannedDiskBonnetjes = [];
+    let bonnetjes = [];
+
+    function getCurrentQuarter() {
+      const month = new Date().getMonth(); // 0-11
+      return 'Q' + (Math.floor(month / 3) + 1);
+    }
+
+    let activeQuarter = getCurrentQuarter();
     let activeFilter = 'Alles';
     let selectedCat = 'Kantoor';
     let receiptPhotoData = null;
+
+    // Set initial active quarter UI
+    document.addEventListener('DOMContentLoaded', () => {
+      setQuarter(activeQuarter);
+    });
+
+    function setQuarter(q) {
+      activeQuarter = q;
+      document.querySelectorAll('.q-pill').forEach(pill => {
+        pill.classList.toggle('active', pill.dataset.q === q);
+      });
+      const badge = document.getElementById('activeQuarterBadge');
+      if (badge) badge.textContent = q;
+
+      refreshBonnetjesForQuarter();
+      renderOverzicht();
+      if (typeof renderShortcuts === 'function') {
+        renderShortcuts();
+      }
+    }
+
+    async function refreshBonnetjesForQuarter() {
+      if (window.electronAPI && window.electronAPI.scanBonnetjes) {
+        const res = await window.electronAPI.scanBonnetjes({ quarter: activeQuarter, year: '2026' });
+        if (res && res.success) {
+          scannedDiskBonnetjes = (res.items || []).map(item => {
+            const override = receiptOverrides[item.id] || {};
+            return {
+              ...item,
+              bedrag: override.bedrag !== undefined ? override.bedrag : item.bedrag,
+              btw: override.btw !== undefined ? override.btw : item.btw,
+              btwBedrag: override.btwBedrag !== undefined ? override.btwBedrag : (item.bedrag / 1.21 * 0.21),
+              categorie: override.categorie || item.categorie,
+              omschrijving: override.omschrijving || item.omschrijving,
+              datum: override.datum || item.datum
+            };
+          });
+        } else {
+          scannedDiskBonnetjes = [];
+        }
+      } else {
+        scannedDiskBonnetjes = [];
+      }
+
+      // Filter local bonnetjes for active quarter
+      const filteredLocal = localBonnetjes.filter(b => {
+        if (!b.datum) return true;
+        const d = new Date(b.datum + 'T12:00:00');
+        if (isNaN(d.getTime())) return true;
+        const q = 'Q' + (Math.floor(d.getMonth() / 3) + 1);
+        return q === activeQuarter;
+      });
+
+      const localFilenames = new Set(filteredLocal.map(b => b.filename).filter(Boolean));
+      const filteredScanned = scannedDiskBonnetjes.filter(sb => !localFilenames.has(sb.filename));
+
+      bonnetjes = [...filteredLocal, ...filteredScanned];
+      renderBonnetjes();
+    }
 
     // Datum standaard vandaag
     document.getElementById('rDatum').value = today();
@@ -2320,6 +2468,7 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
       if (!datum) { alert('Vul een datum in.'); return; }
 
       const btwBedrag = bedrag / (1 + btw / 100) * (btw / 100);
+      const subType = document.getElementById('rType') ? document.getElementById('rType').value : 'zakelijk';
 
       const bonnetje = {
         id: Date.now(),
@@ -2329,12 +2478,14 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
         btwBedrag,
         datum,
         categorie: selectedCat,
-        foto: receiptPhotoData
+        foto: receiptPhotoData,
+        subType: subType,
+        isDiskScan: false
       };
 
       if (window.electronAPI && receiptPhotoData) {
-        const subType = document.getElementById('rType') ? document.getElementById('rType').value : 'zakelijk';
         const receiptFileName = `Bonnetje_${datum}_${subType}_${bonnetje.id}.png`;
+        bonnetje.filename = receiptFileName;
         window.electronAPI.saveReceiptFile({
           filename: receiptFileName,
           base64Data: receiptPhotoData,
@@ -2343,13 +2494,14 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
         }).then((res) => {
           if (res && res.success) {
             console.log('Bonnetje opgeslagen in map:', res.path);
+            refreshBonnetjesForQuarter();
           }
         });
       }
 
-      bonnetjes.unshift(bonnetje);
+      localBonnetjes.unshift(bonnetje);
       saveBonnetjes();
-      renderBonnetjes();
+      refreshBonnetjesForQuarter();
 
       // Reset formulier
       document.getElementById('rOmschrijving').value = '';
@@ -2362,20 +2514,58 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
     }
 
     function saveBonnetjes() {
-      // Sla zonder foto's op als localStorage vol raakt
       try {
-        localStorage.setItem(bonnetjesKey, JSON.stringify(bonnetjes));
+        localStorage.setItem(bonnetjesKey, JSON.stringify(localBonnetjes));
       } catch(e) {
-        const slim = bonnetjes.map(b => ({...b, foto: null}));
+        const slim = localBonnetjes.map(b => ({...b, foto: null}));
         localStorage.setItem(bonnetjesKey, JSON.stringify(slim));
       }
     }
 
     function deleteBonnetje(id) {
       if (!confirm('Bonnetje verwijderen?')) return;
-      bonnetjes = bonnetjes.filter(b => b.id !== id);
+      localBonnetjes = localBonnetjes.filter(b => String(b.id) !== String(id));
       saveBonnetjes();
-      renderBonnetjes();
+      refreshBonnetjesForQuarter();
+    }
+
+    function editBonnetje(id) {
+      const item = bonnetjes.find(b => String(b.id) === String(id));
+      if (!item) return;
+
+      const newBedragStr = prompt(`Bedrag (incl. BTW) voor "${item.omschrijving}":`, item.bedrag ? item.bedrag.toFixed(2) : '0.00');
+      if (newBedragStr === null) return;
+      const newBedrag = parseFloat(newBedragStr.replace(',', '.'));
+      if (isNaN(newBedrag) || newBedrag < 0) { alert('Vul een geldig bedrag in.'); return; }
+
+      const newCat = prompt(`Categorie (Kantoor, Reizen, Eten & Drinken, Software, Hardware, Overig):`, item.categorie);
+      const validCats = ['Kantoor', 'Reizen', 'Eten & Drinken', 'Software', 'Hardware', 'Overig'];
+      const categorie = (newCat && validCats.includes(newCat.trim())) ? newCat.trim() : item.categorie;
+
+      const btwBedrag = newBedrag / 1.21 * 0.21;
+
+      if (item.isDiskScan) {
+        receiptOverrides[id] = {
+          bedrag: newBedrag,
+          categorie: categorie,
+          btw: item.btw || 21,
+          btwBedrag: btwBedrag,
+          omschrijving: item.omschrijving,
+          datum: item.datum
+        };
+        localStorage.setItem(overridesKey, JSON.stringify(receiptOverrides));
+      } else {
+        const localItem = localBonnetjes.find(b => String(b.id) === String(id));
+        if (localItem) {
+          localItem.bedrag = newBedrag;
+          localItem.categorie = categorie;
+          localItem.btwBedrag = btwBedrag;
+          saveBonnetjes();
+        }
+      }
+
+      refreshBonnetjesForQuarter();
+      renderOverzicht();
     }
 
     function setFilter(filter, btn) {
@@ -2389,15 +2579,15 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
       const filtered = activeFilter === 'Alles' ? bonnetjes : bonnetjes.filter(b => b.categorie === activeFilter);
       const grid = document.getElementById('bonnetjesGrid');
 
-      // Stats (always all)
-      const totalAll = bonnetjes.reduce((s, b) => s + b.bedrag, 0);
-      const totalBtw = bonnetjes.reduce((s, b) => s + b.btwBedrag, 0);
+      // Stats for active quarter
+      const totalAll = bonnetjes.reduce((s, b) => s + (b.bedrag || 0), 0);
+      const totalBtw = bonnetjes.reduce((s, b) => s + (b.btwBedrag || 0), 0);
       document.getElementById('stat-total').textContent = euro.format(totalAll);
       document.getElementById('stat-btw').textContent = euro.format(totalBtw);
       document.getElementById('stat-count').textContent = bonnetjes.length;
 
       if (filtered.length === 0) {
-        grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🧾</div><div>Nog geen bonnetjes${activeFilter !== 'Alles' ? ' in deze categorie' : ''}.<br>Voeg je eerste bonnetje toe!</div></div>`;
+        grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🧾</div><div>Nog geen bonnetjes in ${activeQuarter}${activeFilter !== 'Alles' ? ' (' + activeFilter + ')' : ''}.<br>Bestanden in de Finder-map verschijnen hier automatisch!</div></div>`;
         return;
       }
 
@@ -2406,21 +2596,27 @@ IBAN: NL96 BUNQ 2201 6029 72</textarea>
       grid.innerHTML = filtered.map(b => `
         <div class="bonnetje-card" id="bon-${b.id}">
           <div class="bonnetje-thumb">
-            ${b.foto ? `<img src="${b.foto}" alt="Bonnetje">` : `<span>${catIcons[b.categorie] || '📦'}</span>`}
+            ${b.isPdf ? `<span style="font-size: 32px;" title="PDF Bestand">📕</span>` : (b.foto ? `<img src="${b.foto}" alt="Bonnetje">` : `<span>${catIcons[b.categorie] || '📦'}</span>`)}
           </div>
           <div class="bonnetje-info">
-            <div class="bonnetje-title">${escapeHtml(b.omschrijving)}</div>
+            <div class="bonnetje-title" style="display:flex; align-items:center; gap: 8px; flex-wrap:wrap;">
+              <span>${escapeHtml(b.omschrijving)}</span>
+              <span class="source-badge ${b.isDiskScan ? 'disk' : ''}">${b.isDiskScan ? `📁 Schijf (${activeQuarter} / ${b.subType || 'zakelijk'})` : '📱 App'}</span>
+            </div>
             <div class="bonnetje-meta">
               <span>${formatDate(b.datum)}</span>
               <span class="cat-badge">${catIcons[b.categorie] || ''} ${b.categorie}</span>
-              <span>BTW: ${b.btw}%</span>
+              <span>BTW: ${b.btw || 21}%</span>
             </div>
           </div>
           <div class="bonnetje-right">
-            <div class="bonnetje-amount">${euro.format(b.bedrag)}</div>
-            <div class="bonnetje-btw">BTW: ${euro.format(b.btwBedrag)}</div>
-            <div class="bonnetje-actions">
-              <button class="small-icon-btn del" onclick="deleteBonnetje(${b.id})">🗑️ Verwijder</button>
+            <div class="bonnetje-amount">${euro.format(b.bedrag || 0)}</div>
+            <div class="bonnetje-btw">BTW: ${euro.format(b.btwBedrag || 0)}</div>
+            <div class="bonnetje-actions" style="display:flex; gap: 4px; flex-wrap:wrap; justify-content:flex-end; margin-top: 6px;">
+              ${b.fullPath ? `<button class="btn" type="button" style="padding: 3px 8px; font-size: 11px;" onclick="openFile('${escapeJsString(b.fullPath)}')">📄 Open PDF</button>` : ''}
+              ${b.fullPath ? `<button class="btn" type="button" style="padding: 3px 8px; font-size: 11px;" onclick="showInFinder('${escapeJsString(b.fullPath)}')">🖥️ Finder</button>` : ''}
+              <button class="btn" type="button" style="padding: 3px 8px; font-size: 11px;" onclick="editBonnetje('${escapeJsString(b.id)}')">✏️ Bewerken</button>
+              ${!b.isDiskScan ? `<button class="btn" type="button" style="padding: 3px 8px; font-size: 11px; background: #fee2e2; color: #991b1b;" onclick="deleteBonnetje('${escapeJsString(b.id)}')">🗑️</button>` : ''}
             </div>
           </div>
         </div>
